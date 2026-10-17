@@ -1,0 +1,34 @@
+# Adds HTTPS to the full system: Caddy replaces nginx on ports 80 and 443 (for a Compute Engine VM).
+#
+#   DOMAIN=valz.example.com docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
+#
+# See docs/DEPLOYMENT_VM.md.
+services:
+  nginx:
+    profiles: ["off"] # not started: Caddy takes ports 80 and 443
+
+  frontend:
+    environment:
+      # On a public host the proxy must not forward to an address a visitor types into the UI
+      ALLOW_BACKEND_OVERRIDE: "false"
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: "${DOMAIN:?set DOMAIN, for example valz.example.com}"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # the certificate: keep it between restarts
+      - caddy-config:/config
+    depends_on:
+      - frontend
+      - api
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  caddy-config:
