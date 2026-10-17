@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VALZ · Architecture & Team Delegation</title>
+    <title>VALZ · Architecture on Google Cloud</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
@@ -246,2048 +246,612 @@
         flex-wrap: wrap;
         gap: 0.5rem;
       }
+
+      .note {
+        background: var(--color-accent-tint);
+        border-left: 3px solid var(--color-accent);
+        border-radius: 4px;
+        padding: 0.8rem 1rem;
+        font-size: 0.875rem;
+        line-height: 1.55;
+        color: var(--color-ink);
+        margin-bottom: 1.5rem;
+        max-width: 90ch;
+      }
+      .note a, td a { color: var(--color-link); }
+      code {
+        font-family: var(--font-mono);
+        font-size: 0.78em;
+        background: rgba(45, 49, 66, 0.07);
+        border-radius: 3px;
+        padding: 0.05em 0.3em;
+      }
+      .lead { color: var(--color-muted); font-size: 0.9rem; line-height: 1.55; max-width: 80ch; margin-bottom: 1rem; }
+      ol.path { list-style: none; display: grid; gap: 0.5rem; max-width: 110ch; }
+      ol.path li {
+        background: #fff; border: 1px solid var(--color-rule); border-radius: 6px;
+        padding: 0.7rem 0.9rem; font-size: 0.8125rem; line-height: 1.55; color: var(--color-muted);
+      }
+      ol.path li b { color: var(--color-ink); font-family: var(--font-mono); font-size: 0.75rem; }
+      tr.grp td {
+        background: var(--color-paper-2); font-family: var(--font-mono); font-size: 0.62rem;
+        letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-soft); padding: 0.45rem 0.9rem;
+      }
+      td:first-child { white-space: normal; }
+      .diagram-container svg { min-width: 1000px; }
+      @media (max-width: 720px) { body { padding: 1.5rem 1rem; } table { display: block; overflow-x: auto; } }
     </style>
   </head>
-  <body>
+    <body>
     <div class="container">
       <div class="header">
         <p class="header-eyebrow">
-          Architecture · Team Delegation · U-Hackathon AI Track
+          Architecture · Google Cloud · U-Hackathon AI Track
         </p>
-        <h1>
-          VALZ: from factory-floor video to approved Gemba Kaizen action
-        </h1>
+        <h1>VALZ on Google Cloud: from factory-floor video to approved Gemba Kaizen action</h1>
         <p class="subtitle">
-          Live camera frames and recorded clips flow left→right through a
-          perception layer, where BLIP labels every frame and Qwen on OpenRouter
-          steps in only as a last resort. Results land in the Gemba Kaizen
-          (Kaizen) Core as waste-classified segments and safety events, then
-          surface top→down through a multilingual ElevenLabs voice agent (it
-          asks, answers and raises safety alerts in the operator's own language)
-          and a SvelteKit dashboard where the operator approves actions. Every
-          box carries its owner (P1–P5).
+          A clip goes from the browser straight into Cloud Storage. Eventarc starts a
+          Workflows pipeline that normalises the video with the Transcoder API, samples
+          keyframes in a Cloud Run job and counts people with the Video Intelligence
+          API. The Safety Agent asks Gemini on Vertex AI what the worker is doing in each
+          keyframe; the Gemba Kaizen Agent turns the measured waste into action cards,
+          citing a Vertex AI RAG Engine corpus of lean knowledge. Anything Gemini is not
+          sure about goes to the operator through Speech-to-Text and Text-to-Speech, in
+          Thai. State lives in Firestore, analytics in BigQuery. Every box carries its
+          owner (P1–P5) in the delegation section below.
         </p>
+      </div>
+
+      <div class="note">
+        <strong>Target architecture.</strong> This page describes VALZ running entirely on
+        Google Cloud. In the repository today <code>ai_backend</code> still calls OpenRouter and
+        ElevenLabs and runs BLIP and YOLO itself; the table under
+        <a href="#code-changes">What changes in the code</a> lists every swap.
+        Each service is deployed in <a href="DEPLOYMENT.md">DEPLOYMENT.md</a>.
       </div>
 
       <div class="diagram-container">
-        <svg
-          viewBox="0 0 1260 756"
-          xmlns="http://www.w3.org/2000/svg"
-          role="img"
-          aria-labelledby="ll-title ll-desc"
-        >
-          <title id="ll-title">VALZ architecture with team ownership</title>
-          <desc id="ll-desc">
-            A station camera sends a live stream and recorded clips to
-            pre-processing. BLIP with MiniLM matching labels frames and sends
-            resolved segments and safety events straight to the Kaizen
-            Orchestrator. Frames BLIP cannot resolve, plus their raw keyframes,
-            escalate to a Qwen VLM on OpenRouter, which returns a verdict to the
-            Orchestrator. The Orchestrator computes DMAIC action cards, persists
-            state, sends still-uncertain segments to an ElevenLabs voice agent
-            as questions, and pushes safety and critical alerts to the same
-            agent. The agent talks to the operator in their own language; the
-            operator also approves actions on a SvelteKit dashboard that streams
-            state and posts decisions.
-          </desc>
-          <defs>
-            <pattern
-              id="dots"
-              width="22"
-              height="22"
-              patternUnits="userSpaceOnUse"
-            >
-              <circle cx="1" cy="1" r="0.9" fill="rgba(45,49,66,0.10)" />
-            </pattern>
-            <marker
-              id="arrow"
-              markerWidth="8"
-              markerHeight="6"
-              refX="7"
-              refY="3"
-              orient="auto"
-            >
-              <polygon points="0 0, 8 3, 0 6" fill="#4f5d75" />
-            </marker>
-            <marker
-              id="arrow-accent"
-              markerWidth="8"
-              markerHeight="6"
-              refX="7"
-              refY="3"
-              orient="auto"
-            >
-              <polygon points="0 0, 8 3, 0 6" fill="#bf4520" />
-            </marker>
-            <marker
-              id="arrow-link"
-              markerWidth="8"
-              markerHeight="6"
-              refX="7"
-              refY="3"
-              orient="auto"
-            >
-              <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8" />
-            </marker>
-          </defs>
-
-          <rect width="100%" height="100%" fill="#f5f5f5" />
-          <rect width="100%" height="100%" fill="url(#dots)" opacity="0.55" />
-
-          <!-- ============ ZONES (bg → zones → arrows → nodes) ============ -->
-          <rect
-            x="206"
-            y="118"
-            width="572"
-            height="272"
-            rx="8"
-            fill="rgba(45,49,66,0.02)"
-            stroke="rgba(45,49,66,0.10)"
-            stroke-width="0.8"
-          />
-          <rect x="456" y="122" width="72" height="12" rx="2" fill="#f5f5f5" />
-          <text
-            x="492"
-            y="131"
-            fill="#5a6580"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.14em"
-          >
-            PERCEPTION
-          </text>
-
-          <rect
-            x="814"
-            y="118"
-            width="406"
-            height="234"
-            rx="8"
-            fill="rgba(45,49,66,0.02)"
-            stroke="rgba(45,49,66,0.10)"
-            stroke-width="0.8"
-          />
-          <rect x="961" y="122" width="112" height="12" rx="2" fill="#f5f5f5" />
-          <text
-            x="1017"
-            y="131"
-            fill="#5a6580"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.14em"
-          >
-            GEMBA KAIZEN CORE
-          </text>
-
-          <rect
-            x="814"
-            y="408"
-            width="406"
-            height="128"
-            rx="8"
-            fill="rgba(45,49,66,0.02)"
-            stroke="rgba(45,49,66,0.10)"
-            stroke-width="0.8"
-          />
-          <rect x="985" y="412" width="64" height="12" rx="2" fill="#f5f5f5" />
-          <text
-            x="1017"
-            y="421"
-            fill="#5a6580"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.14em"
-          >
-            INTERFACE
-          </text>
-
-          <!-- ============ ARROWS ============ -->
-          <!-- Source → Pre-processing: live stream + recorded clip -->
-          <line
-            x1="170"
-            y1="176"
-            x2="226"
-            y2="176"
-            stroke="#2e5aa8"
-            stroke-width="1.2"
-            marker-end="url(#arrow-link)"
-          />
-          <line
-            x1="170"
-            y1="204"
-            x2="226"
-            y2="204"
-            stroke="#2e5aa8"
-            stroke-width="1.2"
-            marker-end="url(#arrow-link)"
-          />
-          <!-- Pre → BLIP -->
-          <line
-            x1="366"
-            y1="188"
-            x2="422"
-            y2="188"
-            stroke="#4f5d75"
-            stroke-width="1.2"
-            marker-end="url(#arrow)"
-          />
-          <!-- BLIP → Orchestrator (primary, resolved) -->
-          <line
-            x1="562"
-            y1="188"
-            x2="834"
-            y2="188"
-            stroke="#bf4520"
-            stroke-width="1.4"
-            marker-end="url(#arrow-accent)"
-          />
-          <!-- BLIP → Qwen (conditional escalation) -->
-          <path
-            d="M 492,226 V 306 Q 492,314 500,314 H 618"
-            fill="none"
-            stroke="#4f5d75"
-            stroke-width="1"
-            stroke-dasharray="4,3"
-            marker-end="url(#arrow)"
-          />
-          <!-- Pre → Qwen raw keyframes (only on escalation) -->
-          <path
-            d="M 296,226 V 338 Q 296,346 304,346 H 618"
-            fill="none"
-            stroke="#4f5d75"
-            stroke-width="1"
-            stroke-dasharray="4,3"
-            marker-end="url(#arrow)"
-          />
-          <!-- Qwen → Orchestrator verdict -->
-          <path
-            d="M 758,328 H 802 Q 810,328 810,320 V 220 Q 810,212 818,212 H 834"
-            fill="none"
-            stroke="#4f5d75"
-            stroke-width="1.2"
-            marker-end="url(#arrow)"
-          />
-
-          <!-- Core -->
-          <line
-            x1="994"
-            y1="176"
-            x2="1050"
-            y2="176"
-            stroke="#4f5d75"
-            stroke-width="1.2"
-            marker-end="url(#arrow)"
-          />
-          <path
-            d="M 1050,204 H 994"
-            fill="none"
-            stroke="#4f5d75"
-            stroke-width="1"
-            stroke-dasharray="4,3"
-            marker-end="url(#arrow)"
-          />
-          <line
-            x1="1125"
-            y1="226"
-            x2="1125"
-            y2="272"
-            stroke="#4f5d75"
-            stroke-width="1.2"
-            marker-end="url(#arrow)"
-          />
-          <path
-            d="M 970,226 V 296 Q 970,304 978,304 H 1050"
-            fill="none"
-            stroke="#4f5d75"
-            stroke-width="1.2"
-            marker-end="url(#arrow)"
-          />
-
-          <!-- Core ↔ Interface -->
-          <line
-            x1="858"
-            y1="226"
-            x2="858"
-            y2="440"
-            stroke="#bf4520"
-            stroke-width="1.4"
-            marker-end="url(#arrow-accent)"
-          />
-          <line
-            x1="898"
-            y1="226"
-            x2="898"
-            y2="440"
-            stroke="#bf4520"
-            stroke-width="1.4"
-            marker-end="url(#arrow-accent)"
-          />
-          <line
-            x1="946"
-            y1="440"
-            x2="946"
-            y2="226"
-            stroke="#4f5d75"
-            stroke-width="1"
-            stroke-dasharray="4,3"
-            marker-end="url(#arrow)"
-          />
-          <line
-            x1="1105"
-            y1="336"
-            x2="1105"
-            y2="440"
-            stroke="#4f5d75"
-            stroke-width="1.2"
-            marker-end="url(#arrow)"
-          />
-          <line
-            x1="1165"
-            y1="440"
-            x2="1165"
-            y2="336"
-            stroke="#4f5d75"
-            stroke-width="1"
-            stroke-dasharray="4,3"
-            marker-end="url(#arrow)"
-          />
-          <path
-            d="M 1050,478 H 994"
-            fill="none"
-            stroke="#4f5d75"
-            stroke-width="1"
-            stroke-dasharray="4,3"
-            marker-end="url(#arrow)"
-          />
-
-          <!-- Human -->
-          <line
-            x1="834"
-            y1="466"
-            x2="758"
-            y2="466"
-            stroke="#4f5d75"
-            stroke-width="1.2"
-            marker-end="url(#arrow)"
-          />
-          <line
-            x1="758"
-            y1="494"
-            x2="834"
-            y2="494"
-            stroke="#2e5aa8"
-            stroke-width="1.2"
-            marker-end="url(#arrow-link)"
-          />
-          <path
-            d="M 688,516 V 564 Q 688,572 696,572 H 1117 Q 1125,572 1125,564 V 516"
-            fill="none"
-            stroke="#2e5aa8"
-            stroke-width="1.2"
-            marker-end="url(#arrow-link)"
-          />
-
-          <!-- ============ ARROW LABELS ============ -->
-          <g
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            <rect
-              x="183"
-              y="170"
-              width="30"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="198" y="179" fill="#2e5aa8">LIVE</text>
-            <rect
-              x="183"
-              y="198"
-              width="30"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="198" y="207" fill="#2e5aa8">MP4</text>
-            <rect
-              x="374"
-              y="168"
-              width="40"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="394" y="177" fill="#4f5d75">FRAMES</text>
-            <rect
-              x="646"
-              y="168"
-              width="68"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="680" y="177" fill="#bf4520">SEG + EVENTS</text>
-            <rect
-              x="458"
-              y="256"
-              width="68"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="492" y="265" fill="#4f5d75">UNRESOLVED</text>
-            <rect
-              x="264"
-              y="270"
-              width="64"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="296" y="279" fill="#4f5d75">KEYFRAMES</text>
-            <rect
-              x="788"
-              y="264"
-              width="44"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="810" y="273" fill="#4f5d75">VERDICT</text>
-            <rect
-              x="999"
-              y="156"
-              width="46"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="1022" y="165" fill="#4f5d75">COMPUTE</text>
-            <rect
-              x="1004"
-              y="208"
-              width="36"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="1022" y="217" fill="#4f5d75">CARDS</text>
-            <rect
-              x="1131"
-              y="243"
-              width="36"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="1149" y="252" fill="#4f5d75">WRITE</text>
-            <rect
-              x="988"
-              y="286"
-              width="48"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="1012" y="295" fill="#4f5d75">PERSIST</text>
-            <rect
-              x="870"
-              y="300"
-              width="56"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="898" y="309" fill="#bf4520">QUESTION</text>
-            <rect
-              x="836"
-              y="374"
-              width="44"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="858" y="383" fill="#bf4520">ALERT</text>
-            <rect
-              x="921"
-              y="374"
-              width="50"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="946" y="383" fill="#4f5d75">VERIFIED</text>
-            <rect
-              x="1071"
-              y="374"
-              width="28"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="1085" y="383" fill="#4f5d75">SSE</text>
-            <rect
-              x="1171"
-              y="374"
-              width="48"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="1195" y="383" fill="#4f5d75">DECISION</text>
-            <rect
-              x="1002"
-              y="458"
-              width="40"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="1022" y="467" fill="#4f5d75">EMBED</text>
-            <rect
-              x="764"
-              y="446"
-              width="64"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="796" y="455" fill="#4f5d75">ASK · ALERT</text>
-            <rect
-              x="764"
-              y="500"
-              width="64"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="796" y="509" fill="#2e5aa8">REPLY · Q&amp;A</text>
-            <rect
-              x="988"
-              y="554"
-              width="48"
-              height="12"
-              rx="2"
-              fill="#f5f5f5"
-            />
-            <text x="1012" y="563" fill="#2e5aa8">APPROVE</text>
-          </g>
-
-          <!-- ============ NODES ============ -->
-          <!-- 00 Station camera (SRC, P5) -->
-          <rect x="40" y="150" width="130" height="76" rx="6" fill="#f5f5f5" />
-          <rect
-            x="40"
-            y="150"
-            width="130"
-            height="76"
-            rx="6"
-            fill="rgba(79,93,117,0.10)"
-            stroke="#5a6580"
-            stroke-width="1"
-          />
-          <rect
-            x="48"
-            y="158"
-            width="26"
-            height="12"
-            rx="2"
-            fill="transparent"
-            stroke="rgba(90,101,128,0.40)"
-            stroke-width="0.8"
-          />
-          <text
-            x="61"
-            y="167"
-            fill="#5a6580"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            SRC
-          </text>
-          <rect x="136" y="158" width="26" height="12" rx="2" fill="#2d3142" />
-          <text
-            x="149"
-            y="167"
-            fill="#f5f5f5"
-            font-size="7"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            P5
-          </text>
-          <text
-            x="105"
-            y="190"
-            fill="#2d3142"
-            font-size="12"
-            font-weight="600"
-            font-family="'Geist', sans-serif"
-            text-anchor="middle"
-          >
-            Station Camera
-          </text>
-          <text
-            x="105"
-            y="205"
-            fill="#4f5d75"
-            font-size="9"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            live · 30–60 s MP4
-          </text>
-          <text
-            x="105"
-            y="218"
-            fill="#5a6580"
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            before / after
-          </text>
-
-          <!-- 01 Pre-processing (P1) -->
-          <rect x="226" y="150" width="140" height="76" rx="6" fill="#f5f5f5" />
-          <rect
-            x="226"
-            y="150"
-            width="140"
-            height="76"
-            rx="6"
-            fill="#ffffff"
-            stroke="#2d3142"
-            stroke-width="1"
-          />
-          <rect
-            x="234"
-            y="158"
-            width="22"
-            height="12"
-            rx="2"
-            fill="transparent"
-            stroke="rgba(45,49,66,0.40)"
-            stroke-width="0.8"
-          />
-          <text
-            x="245"
-            y="167"
-            fill="#2d3142"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            CV
-          </text>
-          <rect x="332" y="158" width="26" height="12" rx="2" fill="#2d3142" />
-          <text
-            x="345"
-            y="167"
-            fill="#f5f5f5"
-            font-size="7"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            P1
-          </text>
-          <text
-            x="358"
-            y="222"
-            fill="rgba(45,49,66,0.06)"
-            font-size="28"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="end"
-          >
-            01
-          </text>
-          <text
-            x="296"
-            y="190"
-            fill="#2d3142"
-            font-size="12"
-            font-weight="600"
-            font-family="'Geist', sans-serif"
-            text-anchor="middle"
-          >
-            Pre-processing
-          </text>
-          <text
-            x="296"
-            y="205"
-            fill="#4f5d75"
-            font-size="9"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            OpenCV · FFmpeg
-          </text>
-          <text
-            x="296"
-            y="218"
-            fill="#5a6580"
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            clip + live sampler
-          </text>
-
-          <!-- 02 BLIP (P1) -->
-          <rect x="422" y="150" width="140" height="76" rx="6" fill="#f5f5f5" />
-          <rect
-            x="422"
-            y="150"
-            width="140"
-            height="76"
-            rx="6"
-            fill="rgba(45,49,66,0.03)"
-            stroke="rgba(45,49,66,0.30)"
-            stroke-width="1"
-          />
-          <rect
-            x="430"
-            y="158"
-            width="34"
-            height="12"
-            rx="2"
-            fill="transparent"
-            stroke="rgba(45,49,66,0.22)"
-            stroke-width="0.8"
-          />
-          <text
-            x="447"
-            y="167"
-            fill="#5a6580"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            MODEL
-          </text>
-          <rect x="528" y="158" width="26" height="12" rx="2" fill="#2d3142" />
-          <text
-            x="541"
-            y="167"
-            fill="#f5f5f5"
-            font-size="7"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            P1
-          </text>
-          <text
-            x="554"
-            y="222"
-            fill="rgba(45,49,66,0.06)"
-            font-size="28"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="end"
-          >
-            02
-          </text>
-          <text
-            x="492"
-            y="190"
-            fill="#2d3142"
-            font-size="12"
-            font-weight="600"
-            font-family="'Geist', sans-serif"
-            text-anchor="middle"
-          >
-            BLIP Labeler
-          </text>
-          <text
-            x="492"
-            y="205"
-            fill="#4f5d75"
-            font-size="9"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            BLIP + MiniLM
-          </text>
-          <text
-            x="492"
-            y="218"
-            fill="#5a6580"
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            caption → label match
-          </text>
-
-          <!-- 03 Qwen VLM, last resort (P2) -->
-          <rect x="618" y="290" width="140" height="76" rx="6" fill="#f5f5f5" />
-          <rect
-            x="618"
-            y="290"
-            width="140"
-            height="76"
-            rx="6"
-            fill="rgba(45,49,66,0.03)"
-            stroke="rgba(45,49,66,0.30)"
-            stroke-width="1"
-          />
-          <rect
-            x="626"
-            y="298"
-            width="34"
-            height="12"
-            rx="2"
-            fill="transparent"
-            stroke="rgba(45,49,66,0.22)"
-            stroke-width="0.8"
-          />
-          <text
-            x="643"
-            y="307"
-            fill="#5a6580"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            MODEL
-          </text>
-          <rect x="724" y="298" width="26" height="12" rx="2" fill="#2d3142" />
-          <text
-            x="737"
-            y="307"
-            fill="#f5f5f5"
-            font-size="7"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            P2
-          </text>
-          <text
-            x="750"
-            y="362"
-            fill="rgba(45,49,66,0.06)"
-            font-size="28"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="end"
-          >
-            03
-          </text>
-          <text
-            x="688"
-            y="330"
-            fill="#2d3142"
-            font-size="12"
-            font-weight="600"
-            font-family="'Geist', sans-serif"
-            text-anchor="middle"
-          >
-            Qwen VLM
-          </text>
-          <text
-            x="688"
-            y="345"
-            fill="#4f5d75"
-            font-size="9"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            OpenRouter · Qwen
-          </text>
-          <text
-            x="688"
-            y="358"
-            fill="#5a6580"
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            last resort after BLIP
-          </text>
-
-          <!-- 04 Kaizen Orchestrator (FOCAL, P3) -->
-          <rect x="834" y="150" width="160" height="76" rx="6" fill="#f5f5f5" />
-          <rect
-            x="834"
-            y="150"
-            width="160"
-            height="76"
-            rx="6"
-            fill="rgba(191,69,32,0.08)"
-            stroke="#bf4520"
-            stroke-width="1"
-          />
-          <rect
-            x="842"
-            y="158"
-            width="24"
-            height="12"
-            rx="2"
-            fill="transparent"
-            stroke="rgba(191,69,32,0.50)"
-            stroke-width="0.8"
-          />
-          <text
-            x="854"
-            y="167"
-            fill="#bf4520"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            API
-          </text>
-          <rect x="960" y="158" width="26" height="12" rx="2" fill="#2d3142" />
-          <text
-            x="973"
-            y="167"
-            fill="#f5f5f5"
-            font-size="7"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            P3
-          </text>
-          <text
-            x="986"
-            y="222"
-            fill="rgba(191,69,32,0.10)"
-            font-size="28"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="end"
-          >
-            04
-          </text>
-          <text
-            x="914"
-            y="190"
-            fill="#2d3142"
-            font-size="12"
-            font-weight="600"
-            font-family="'Geist', sans-serif"
-            text-anchor="middle"
-          >
-            Kaizen Orchestrator
-          </text>
-          <text
-            x="914"
-            y="205"
-            fill="#4f5d75"
-            font-size="9"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            FastAPI · Python
-          </text>
-          <text
-            x="914"
-            y="218"
-            fill="#5a6580"
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            routes · voice · alerts
-          </text>
-
-          <!-- 05 Kaizen Engine (P3) -->
-          <rect
-            x="1050"
-            y="150"
-            width="150"
-            height="76"
-            rx="6"
-            fill="#f5f5f5"
-          />
-          <rect
-            x="1050"
-            y="150"
-            width="150"
-            height="76"
-            rx="6"
-            fill="#ffffff"
-            stroke="#2d3142"
-            stroke-width="1"
-          />
-          <rect
-            x="1058"
-            y="158"
-            width="34"
-            height="12"
-            rx="2"
-            fill="transparent"
-            stroke="rgba(45,49,66,0.40)"
-            stroke-width="0.8"
-          />
-          <text
-            x="1075"
-            y="167"
-            fill="#2d3142"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            LOGIC
-          </text>
-          <rect x="1166" y="158" width="26" height="12" rx="2" fill="#2d3142" />
-          <text
-            x="1179"
-            y="167"
-            fill="#f5f5f5"
-            font-size="7"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            P3
-          </text>
-          <text
-            x="1192"
-            y="222"
-            fill="rgba(45,49,66,0.06)"
-            font-size="28"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="end"
-          >
-            05
-          </text>
-          <text
-            x="1125"
-            y="190"
-            fill="#2d3142"
-            font-size="12"
-            font-weight="600"
-            font-family="'Geist', sans-serif"
-            text-anchor="middle"
-          >
-            Kaizen Engine
-          </text>
-          <text
-            x="1125"
-            y="205"
-            fill="#4f5d75"
-            font-size="9"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            VA/NVA · σ · ROI
-          </text>
-          <text
-            x="1125"
-            y="218"
-            fill="#5a6580"
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            DMAIC Action Cards
-          </text>
-
-          <!-- 06 State Store (P3) -->
-          <rect
-            x="1050"
-            y="272"
-            width="150"
-            height="64"
-            rx="6"
-            fill="#f5f5f5"
-          />
-          <rect
-            x="1050"
-            y="272"
-            width="150"
-            height="64"
-            rx="6"
-            fill="rgba(45,49,66,0.05)"
-            stroke="#4f5d75"
-            stroke-width="1"
-          />
-          <rect
-            x="1058"
-            y="280"
-            width="22"
-            height="12"
-            rx="2"
-            fill="transparent"
-            stroke="rgba(79,93,117,0.50)"
-            stroke-width="0.8"
-          />
-          <text
-            x="1069"
-            y="289"
-            fill="#4f5d75"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            DB
-          </text>
-          <rect x="1166" y="280" width="26" height="12" rx="2" fill="#2d3142" />
-          <text
-            x="1179"
-            y="289"
-            fill="#f5f5f5"
-            font-size="7"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            P3
-          </text>
-          <text
-            x="1192"
-            y="332"
-            fill="rgba(45,49,66,0.06)"
-            font-size="28"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="end"
-          >
-            06
-          </text>
-          <text
-            x="1125"
-            y="308"
-            fill="#2d3142"
-            font-size="12"
-            font-weight="600"
-            font-family="'Geist', sans-serif"
-            text-anchor="middle"
-          >
-            State Store
-          </text>
-          <text
-            x="1125"
-            y="323"
-            fill="#4f5d75"
-            font-size="9"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            JSON / SQLite
-          </text>
-
-          <!-- Operator (USER) -->
-          <rect x="618" y="440" width="140" height="76" rx="6" fill="#f5f5f5" />
-          <rect
-            x="618"
-            y="440"
-            width="140"
-            height="76"
-            rx="6"
-            fill="rgba(79,93,117,0.10)"
-            stroke="#5a6580"
-            stroke-width="1"
-          />
-          <rect
-            x="626"
-            y="448"
-            width="30"
-            height="12"
-            rx="2"
-            fill="transparent"
-            stroke="rgba(90,101,128,0.40)"
-            stroke-width="0.8"
-          />
-          <text
-            x="641"
-            y="457"
-            fill="#5a6580"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            USER
-          </text>
-          <text
-            x="688"
-            y="480"
-            fill="#2d3142"
-            font-size="12"
-            font-weight="600"
-            font-family="'Geist', sans-serif"
-            text-anchor="middle"
-          >
-            Operator
-          </text>
-          <text
-            x="688"
-            y="495"
-            fill="#4f5d75"
-            font-size="9"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            headset · own language
-          </text>
-          <text
-            x="688"
-            y="508"
-            fill="#5a6580"
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            ground truth · approver
-          </text>
-
-          <!-- 07 ElevenLabs Voice Agent (FOCAL, P4) -->
-          <rect x="834" y="440" width="160" height="76" rx="6" fill="#f5f5f5" />
-          <rect
-            x="834"
-            y="440"
-            width="160"
-            height="76"
-            rx="6"
-            fill="rgba(191,69,32,0.08)"
-            stroke="#bf4520"
-            stroke-width="1"
-          />
-          <rect
-            x="842"
-            y="448"
-            width="34"
-            height="12"
-            rx="2"
-            fill="transparent"
-            stroke="rgba(191,69,32,0.50)"
-            stroke-width="0.8"
-          />
-          <text
-            x="859"
-            y="457"
-            fill="#bf4520"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            VOICE
-          </text>
-          <rect x="960" y="448" width="26" height="12" rx="2" fill="#2d3142" />
-          <text
-            x="973"
-            y="457"
-            fill="#f5f5f5"
-            font-size="7"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            P4
-          </text>
-          <text
-            x="986"
-            y="512"
-            fill="rgba(191,69,32,0.10)"
-            font-size="28"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="end"
-          >
-            07
-          </text>
-          <text
-            x="914"
-            y="480"
-            fill="#2d3142"
-            font-size="12"
-            font-weight="600"
-            font-family="'Geist', sans-serif"
-            text-anchor="middle"
-          >
-            ElevenLabs Agent
-          </text>
-          <text
-            x="914"
-            y="495"
-            fill="#4f5d75"
-            font-size="9"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            STT · LLM · TTS · tools
-          </text>
-          <text
-            x="914"
-            y="508"
-            fill="#5a6580"
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            any lang · Q&amp;A · alerts
-          </text>
-
-          <!-- 08 Dashboard (P5) -->
-          <rect
-            x="1050"
-            y="440"
-            width="150"
-            height="76"
-            rx="6"
-            fill="#f5f5f5"
-          />
-          <rect
-            x="1050"
-            y="440"
-            width="150"
-            height="76"
-            rx="6"
-            fill="#ffffff"
-            stroke="#2d3142"
-            stroke-width="1"
-          />
-          <rect
-            x="1058"
-            y="448"
-            width="22"
-            height="12"
-            rx="2"
-            fill="transparent"
-            stroke="rgba(45,49,66,0.40)"
-            stroke-width="0.8"
-          />
-          <text
-            x="1069"
-            y="457"
-            fill="#2d3142"
-            font-size="7"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-            letter-spacing="0.08em"
-          >
-            UI
-          </text>
-          <rect x="1166" y="448" width="26" height="12" rx="2" fill="#2d3142" />
-          <text
-            x="1179"
-            y="457"
-            fill="#f5f5f5"
-            font-size="7"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            P5
-          </text>
-          <text
-            x="1192"
-            y="512"
-            fill="rgba(45,49,66,0.06)"
-            font-size="28"
-            font-weight="600"
-            font-family="'Geist Mono', monospace"
-            text-anchor="end"
-          >
-            08
-          </text>
-          <text
-            x="1125"
-            y="480"
-            fill="#2d3142"
-            font-size="12"
-            font-weight="600"
-            font-family="'Geist', sans-serif"
-            text-anchor="middle"
-          >
-            Dashboard
-          </text>
-          <text
-            x="1125"
-            y="495"
-            fill="#4f5d75"
-            font-size="9"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            SvelteKit
-          </text>
-          <text
-            x="1125"
-            y="508"
-            fill="#5a6580"
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            text-anchor="middle"
-          >
-            video · timeline · cards
-          </text>
-
-          <!-- Annotation: escalation ladder + alert path (not a legend) -->
-          <rect
-            x="40"
-            y="440"
-            width="540"
-            height="216"
-            rx="6"
-            fill="#ffffff"
-            stroke="rgba(45,49,66,0.12)"
-            stroke-width="0.8"
-          />
-          <text
-            x="56"
-            y="460"
-            fill="#5a6580"
-            font-size="7.5"
-            font-family="'Geist Mono', monospace"
-            letter-spacing="0.16em"
-          >
-            THE ESCALATION LADDER · BUILDER CHECKPOINT 3
-          </text>
-          <g font-family="'Geist', sans-serif" font-size="10.5" fill="#4f5d75">
-            <text x="56" y="482">
-              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
-                02 ·
-              </tspan>
-              BLIP + MiniLM label every frame; clear results go straight to the
-              core.
-            </text>
-            <text x="56" y="500">
-              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
-                03 ·
-              </tspan>
-              What BLIP can't resolve goes to Qwen (OpenRouter) with the raw
-              keyframe.
-            </text>
-            <text x="56" y="518">
-              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
-                04 ·
-              </tspan>
-              Still unclear → UNCERTAIN (grey bar); a question is queued for
-              that timestamp.
-            </text>
-            <text x="56" y="536">
-              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
-                07 ·
-              </tspan>
-              Voice agent asks the operator in their own language, hands-free.
-            </text>
-            <text x="56" y="554">
-              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
-                05 ·
-              </tspan>
-              Answer → verified; Kaizen Engine updates Analyze + ROI; SSE refreshes
-              08.
-            </text>
-          </g>
-          <text
-            x="56"
-            y="580"
-            fill="#bf4520"
-            font-size="7.5"
-            font-family="'Geist Mono', monospace"
-            letter-spacing="0.16em"
-          >
-            THE ALERT PATH · SAFETY &amp; CRITICAL ISSUES
-          </text>
-          <g font-family="'Geist', sans-serif" font-size="10.5" fill="#4f5d75">
-            <text x="56" y="598">
-              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
-                LIVE ·
-              </tspan>
-              camera stream → safety rules only → spoken alert within seconds.
-            </text>
-            <text x="56" y="616">
-              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
-                CLIP ·
-              </tspan>
-              events found in recorded clips → alert queue; high severity still
-              interrupts.
-            </text>
-          </g>
-          <text
-            x="56"
-            y="644"
-            fill="#2d3142"
-            font-size="14"
-            font-style="italic"
-            font-family="'Instrument Serif', serif"
-          >
-            Cheapest model first, bigger model second, the person who knows
-            last.
-          </text>
-
-          <!-- ============ LEGEND ============ -->
-          <line
-            x1="40"
-            y1="676"
-            x2="1220"
-            y2="676"
-            stroke="rgba(45,49,66,0.10)"
-            stroke-width="0.8"
-          />
-          <text
-            x="40"
-            y="692"
-            fill="#4f5d75"
-            font-size="8"
-            font-family="'Geist Mono', monospace"
-            letter-spacing="0.18em"
-          >
-            LEGEND
-          </text>
-          <g font-size="8.5" font-family="'Geist', sans-serif" fill="#4f5d75">
-            <rect
-              x="40"
-              y="704"
-              width="14"
-              height="10"
-              rx="2"
-              fill="rgba(191,69,32,0.08)"
-              stroke="#bf4520"
-              stroke-width="1"
-            />
-            <text x="60" y="712">Focal / integration</text>
-            <rect
-              x="170"
-              y="704"
-              width="14"
-              height="10"
-              rx="2"
-              fill="#ffffff"
-              stroke="#2d3142"
-              stroke-width="1"
-            />
-            <text x="190" y="712">Service</text>
-            <rect
-              x="250"
-              y="704"
-              width="14"
-              height="10"
-              rx="2"
-              fill="rgba(45,49,66,0.03)"
-              stroke="rgba(45,49,66,0.30)"
-              stroke-width="1"
-            />
-            <text x="270" y="712">Model / 3rd-party API</text>
-            <rect
-              x="390"
-              y="704"
-              width="14"
-              height="10"
-              rx="2"
-              fill="rgba(45,49,66,0.05)"
-              stroke="#4f5d75"
-              stroke-width="1"
-            />
-            <text x="410" y="712">Store / config</text>
-            <rect
-              x="500"
-              y="704"
-              width="14"
-              height="10"
-              rx="2"
-              fill="rgba(79,93,117,0.10)"
-              stroke="#5a6580"
-              stroke-width="1"
-            />
-            <text x="520" y="712">Human / source</text>
-            <line
-              x1="630"
-              y1="709"
-              x2="658"
-              y2="709"
-              stroke="#2e5aa8"
-              stroke-width="1.2"
-              marker-end="url(#arrow-link)"
-            />
-            <text x="666" y="712">Media / human input</text>
-            <line
-              x1="770"
-              y1="709"
-              x2="798"
-              y2="709"
-              stroke="#bf4520"
-              stroke-width="1.4"
-              marker-end="url(#arrow-accent)"
-            />
-            <text x="806" y="712">Primary flow / alert</text>
-            <line
-              x1="910"
-              y1="709"
-              x2="938"
-              y2="709"
-              stroke="#4f5d75"
-              stroke-width="1.2"
-              marker-end="url(#arrow)"
-            />
-            <text x="946" y="712">Data flow</text>
-            <line
-              x1="1010"
-              y1="709"
-              x2="1038"
-              y2="709"
-              stroke="#4f5d75"
-              stroke-width="1"
-              stroke-dasharray="4,3"
-              marker-end="url(#arrow)"
-            />
-            <text x="1046" y="712">Return / conditional</text>
-            <rect x="40" y="726" width="26" height="12" rx="2" fill="#2d3142" />
-            <text
-              x="53"
-              y="735"
-              fill="#f5f5f5"
-              font-size="7"
-              font-weight="600"
-              font-family="'Geist Mono', monospace"
-              text-anchor="middle"
-            >
-              P#
-            </text>
-            <text x="74" y="735">
-              Owner: P1 Vision pipeline &amp; live sampler · P2 Label prompts,
-              safety rules &amp; Qwen escalation · P3 Backend &amp; Kaizen engine ·
-              P4 Multilingual voice agent &amp; alerts · P5 Dashboard, demo
-              &amp; pitch
-            </text>
-          </g>
-        </svg>
+<svg viewBox="0 0 1260 716" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="gcp-title gcp-desc" font-family="Geist, system-ui, sans-serif">
+<title id="gcp-title">VALZ architecture on Google Cloud</title>
+<desc id="gcp-desc">Operators, managers and a station camera reach VALZ through Cloud DNS, Cloud Armor, a global external Application Load Balancer with Cloud CDN, and Identity-Aware Proxy. Two Cloud Run services serve the dashboard and the API, which hosts the Safety, Gemba Kaizen and Voice agents. Clips upload straight to Cloud Storage with signed URLs; Eventarc starts a Workflows pipeline that uses the Transcoder API, a Cloud Run job and the Video Intelligence API. The agents call Gemini on Vertex AI, Vertex AI RAG Engine and the Speech-to-Text, Text-to-Speech and Translation APIs. State lives in Firestore, alerts in Pub/Sub, analytics in BigQuery and Looker Studio. IAM, Secret Manager, Cloud KMS, Cloud Build, Artifact Registry, Cloud Deploy and the operations suite sit underneath.</desc>
+<defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2d3142"/></marker>
+<style>
+.band{font:500 9.5px "Geist Mono", ui-monospace, monospace; letter-spacing:.16em; fill:#4f5d75; text-transform:uppercase}
+.t{font:600 12.5px Geist, system-ui, sans-serif; fill:#2d3142}
+.s{font:400 10px "Geist Mono", ui-monospace, monospace; fill:#4f5d75}
+.c{font:500 10.5px "Geist Mono", ui-monospace, monospace; fill:#2d3142; text-anchor:middle}
+.n{font:600 10px "Geist Mono", ui-monospace, monospace; fill:#fff; text-anchor:middle}
+.cap{font:400 10px "Geist Mono", ui-monospace, monospace; fill:#5a6580}
+</style></defs>
+<rect width="1260" height="716" fill="#f5f5f5"/>
+<rect x="20" y="14" width="1220" height="96" rx="8" fill="#ffffff" fill-opacity="0.55" stroke="rgba(45,49,66,0.14)"/>
+<text x="36" y="32" class="band">1 · Edge &amp; access</text>
+<rect x="34" y="37" width="482" height="68" rx="7" fill="none" stroke="rgba(45,49,66,0.30)" stroke-dasharray="4 3"/>
+<rect x="40" y="42" width="150" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="40" y="42" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="54" y="61" class="t">Operator</text>
+<text x="54" y="76" class="s">Thai, hands-free, on</text>
+<text x="54" y="88.5" class="s">the line</text>
+<rect x="200" y="42" width="150" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="200" y="42" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="214" y="61" class="t">Plant manager</text>
+<text x="214" y="76" class="s">Japanese / English</text>
+<text x="214" y="88.5" class="s">review</text>
+<rect x="360" y="42" width="150" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="360" y="42" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="374" y="61" class="t">Station camera</text>
+<text x="374" y="76" class="s">recorded clips (live:</text>
+<text x="374" y="88.5" class="s">later)</text>
+<rect x="570" y="42" width="110" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="570" y="42" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="584" y="61" class="t">Cloud DNS</text>
+<text x="584" y="76" class="s">valz.&lt;domain&gt;</text>
+<rect x="700" y="42" width="120" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="700" y="42" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="714" y="61" class="t">Cloud Armor</text>
+<text x="714" y="76" class="s">WAF, rate limits</text>
+<rect x="840" y="42" width="200" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="840" y="42" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="854" y="61" class="t">External LB + Cloud CDN</text>
+<text x="854" y="76" class="s">global Application LB, HTTPS</text>
+<circle cx="1030" cy="42" r="9" fill="#2d3142" stroke="#f5f5f5" stroke-width="2"/>
+<text x="1030" y="45.5" class="n">1</text>
+<rect x="1060" y="42" width="160" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="1060" y="42" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="1074" y="61" class="t">Identity-Aware</text>
+<text x="1074" y="76" class="t">Proxy</text>
+<text x="1074" y="91" class="s">Google sign-in</text>
+<path d="M516,71 L570,71" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M680,71 L700,71" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M820,71 L840,71" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M1040,71 L1060,71" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="20" y="124" width="1220" height="96" rx="8" fill="#ffffff" fill-opacity="0.55" stroke="rgba(45,49,66,0.14)"/>
+<text x="36" y="142" class="band">2 · Serve (Cloud Run + Cloud Storage)</text>
+<rect x="40" y="152" width="220" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="40" y="152" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="54" y="171" class="t">Cloud Storage: static</text>
+<text x="54" y="186" class="s">demo clips + cached analyses, CDN</text>
+<text x="54" y="198.5" class="s">backend bucket</text>
+<rect x="280" y="152" width="210" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="280" y="152" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="294" y="171" class="t">IAM Credentials API</text>
+<text x="294" y="186" class="s">signs the upload URLs</text>
+<rect x="510" y="152" width="390" height="58" rx="5" fill="rgba(191,69,32,0.08)" stroke="#bf4520"/>
+<rect x="510" y="152" width="4" height="58" rx="2" fill="#bf4520"/>
+<text x="524" y="171" class="t">Cloud Run: valz-api (FastAPI)</text>
+<text x="524" y="186" class="s">Safety Agent · Gemba Kaizen Agent · Voice Agent · SSE</text>
+<circle cx="890" cy="152" r="9" fill="#2d3142" stroke="#f5f5f5" stroke-width="2"/>
+<text x="890" y="155.5" class="n">2</text>
+<rect x="920" y="152" width="300" height="58" rx="5" fill="rgba(191,69,32,0.08)" stroke="#bf4520"/>
+<rect x="920" y="152" width="4" height="58" rx="2" fill="#bf4520"/>
+<text x="934" y="171" class="t">Cloud Run: valz-frontend</text>
+<text x="934" y="186" class="s">SvelteKit dashboard, /api/* proxy</text>
+<path d="M1140,100 L1140,152" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M920,181 L900,181" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M490,181 L510,181" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="20" y="234" width="1220" height="96" rx="8" fill="#ffffff" fill-opacity="0.55" stroke="rgba(45,49,66,0.14)"/>
+<text x="36" y="252" class="band">3 · Ingest &amp; perception</text>
+<rect x="40" y="262" width="200" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="40" y="262" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="54" y="281" class="t">Cloud Storage: raw-clips</text>
+<text x="54" y="296" class="s">browser PUT via signed URL</text>
+<circle cx="230" cy="262" r="9" fill="#2d3142" stroke="#f5f5f5" stroke-width="2"/>
+<text x="230" y="265.5" class="n">3</text>
+<rect x="255" y="262" width="115" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="255" y="262" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="269" y="281" class="t">Eventarc</text>
+<text x="269" y="296" class="s">on upload</text>
+<rect x="385" y="262" width="180" height="58" rx="5" fill="rgba(191,69,32,0.08)" stroke="#bf4520"/>
+<rect x="385" y="262" width="4" height="58" rx="2" fill="#bf4520"/>
+<text x="399" y="281" class="t">Workflows</text>
+<text x="399" y="296" class="s">valz-pipeline, the</text>
+<text x="399" y="308.5" class="s">orchestrator</text>
+<circle cx="555" cy="262" r="9" fill="#2d3142" stroke="#f5f5f5" stroke-width="2"/>
+<text x="555" y="265.5" class="n">4</text>
+<rect x="580" y="262" width="140" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="580" y="262" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="594" y="281" class="t">Transcoder API</text>
+<text x="594" y="296" class="s">H.264 + preview</text>
+<rect x="735" y="262" width="215" height="58" rx="5" fill="rgba(191,69,32,0.08)" stroke="#bf4520"/>
+<rect x="735" y="262" width="4" height="58" rx="2" fill="#bf4520"/>
+<text x="749" y="281" class="t">Cloud Run job</text>
+<text x="749" y="296" class="s">valz-perception · keyframes</text>
+<rect x="965" y="262" width="255" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="965" y="262" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="979" y="281" class="t">Video Intelligence API</text>
+<text x="979" y="296" class="s">people detection + tracking</text>
+<path d="M240,291 L255,291" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M370,291 L385,291" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M565,291 L580,291" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M720,291 L735,291" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M950,291 L965,291" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="20" y="344" width="1220" height="96" rx="8" fill="#ffffff" fill-opacity="0.55" stroke="rgba(45,49,66,0.14)"/>
+<text x="36" y="362" class="band">4 · Reasoning &amp; voice</text>
+<rect x="40" y="372" width="270" height="58" rx="5" fill="rgba(191,69,32,0.08)" stroke="#bf4520"/>
+<rect x="40" y="372" width="4" height="58" rx="2" fill="#bf4520"/>
+<text x="54" y="391" class="t">Gemini: VLM reasoner</text>
+<text x="54" y="406" class="s">on Vertex AI · Safety Agent labels</text>
+<circle cx="300" cy="372" r="9" fill="#2d3142" stroke="#f5f5f5" stroke-width="2"/>
+<text x="300" y="375.5" class="n">5</text>
+<rect x="325" y="372" width="250" height="58" rx="5" fill="rgba(191,69,32,0.08)" stroke="#bf4520"/>
+<rect x="325" y="372" width="4" height="58" rx="2" fill="#bf4520"/>
+<text x="339" y="391" class="t">Gemini: Gemba Kaizen LLM</text>
+<text x="339" y="406" class="s">on Vertex AI · JSON-schema cards</text>
+<circle cx="565" cy="372" r="9" fill="#2d3142" stroke="#f5f5f5" stroke-width="2"/>
+<text x="565" y="375.5" class="n">6</text>
+<rect x="590" y="372" width="200" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="590" y="372" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="604" y="391" class="t">Vertex AI RAG Engine</text>
+<text x="604" y="406" class="s">knowledge cards + SOPs</text>
+<rect x="805" y="372" width="130" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="805" y="372" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="819" y="391" class="t">Speech-to-Text</text>
+<text x="819" y="406" class="s">v2, Chirp 3</text>
+<circle cx="925" cy="372" r="9" fill="#2d3142" stroke="#f5f5f5" stroke-width="2"/>
+<text x="925" y="375.5" class="n">7</text>
+<rect x="945" y="372" width="130" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="945" y="372" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="959" y="391" class="t">Text-to-Speech</text>
+<text x="959" y="406" class="s">Chirp 3 HD voices</text>
+<rect x="1085" y="372" width="135" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="1085" y="372" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="1099" y="391" class="t">Translation</text>
+<text x="1099" y="406" class="s">labels, UI text</text>
+<path d="M475,320 L475,332 L240,332 L240,372" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M310,401 L325,401" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M590,401 L575,401" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<rect x="20" y="454" width="1220" height="96" rx="8" fill="#ffffff" fill-opacity="0.55" stroke="rgba(45,49,66,0.14)"/>
+<text x="36" y="472" class="band">5 · State &amp; analytics</text>
+<rect x="40" y="482" width="300" height="58" rx="5" fill="rgba(191,69,32,0.08)" stroke="#bf4520"/>
+<rect x="40" y="482" width="4" height="58" rx="2" fill="#bf4520"/>
+<text x="54" y="501" class="t">Firestore: state store</text>
+<text x="54" y="516" class="s">runs, segments, cards, decisions, questions</text>
+<circle cx="330" cy="482" r="9" fill="#2d3142" stroke="#f5f5f5" stroke-width="2"/>
+<text x="330" y="485.5" class="n">8</text>
+<rect x="355" y="482" width="170" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="355" y="482" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="369" y="501" class="t">BigQuery</text>
+<text x="369" y="516" class="s">valz_analytics</text>
+<circle cx="515" cy="482" r="9" fill="#2d3142" stroke="#f5f5f5" stroke-width="2"/>
+<text x="515" y="485.5" class="n">9</text>
+<rect x="540" y="482" width="150" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="540" y="482" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="554" y="501" class="t">Looker Studio</text>
+<text x="554" y="516" class="s">plant KPI report</text>
+<rect x="705" y="482" width="250" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="705" y="482" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="719" y="501" class="t">Cloud Storage: processed</text>
+<text x="719" y="516" class="s">frames, evidence, exports</text>
+<rect x="970" y="482" width="250" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.28)"/>
+<rect x="970" y="482" width="4" height="58" rx="2" fill="#2e5aa8"/>
+<text x="984" y="501" class="t">Pub/Sub</text>
+<text x="984" y="516" class="s">clip.uploaded · segment.uncertain ·</text>
+<text x="984" y="528.5" class="s">alert.raised</text>
+<path d="M340,511 L355,511" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M525,511 L540,511" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M240,430 L240,482" fill="none" stroke="#2d3142" stroke-width="1.4" marker-end="url(#ah)"/>
+<path d="M1010,482 L1010,430" fill="none" stroke="#2d3142" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ah)"/>
+<rect x="20" y="564" width="1220" height="138" rx="8" fill="#ffffff" fill-opacity="0.55" stroke="rgba(45,49,66,0.14)"/>
+<text x="36" y="582" class="band">6 · Platform, security, delivery &amp; operations</text>
+<rect x="40" y="594" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="40" y="594" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="111.0" y="613" class="c">Service accounts</text>
+<rect x="188" y="594" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="188" y="594" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="259.0" y="613" class="c">Secret Manager</text>
+<rect x="336" y="594" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="336" y="594" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="407.0" y="613" class="c">Cloud KMS (CMEK)</text>
+<rect x="484" y="594" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="484" y="594" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="555.0" y="613" class="c">Cloud Logging</text>
+<rect x="632" y="594" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="632" y="594" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="703.0" y="613" class="c">Cloud Monitoring</text>
+<rect x="780" y="594" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="780" y="594" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="851.0" y="613" class="c">Cloud Trace</text>
+<rect x="928" y="594" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="928" y="594" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="999.0" y="613" class="c">Error Reporting</text>
+<rect x="1076" y="594" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="1076" y="594" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="1147.0" y="613" class="c">Billing budgets</text>
+<rect x="40" y="636" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="40" y="636" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="111.0" y="655" class="c">Artifact Registry</text>
+<rect x="188" y="636" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="188" y="636" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="259.0" y="655" class="c">Cloud Build</text>
+<rect x="336" y="636" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="336" y="636" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="407.0" y="655" class="c">Cloud Deploy</text>
+<rect x="484" y="636" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="484" y="636" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="555.0" y="655" class="c">Cloud Tasks</text>
+<rect x="632" y="636" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="632" y="636" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="703.0" y="655" class="c">Cloud Scheduler</text>
+<rect x="780" y="636" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="780" y="636" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="851.0" y="655" class="c">Firestore TTL</text>
+<rect x="928" y="636" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="928" y="636" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="999.0" y="655" class="c">VPC networking</text>
+<rect x="1076" y="636" width="140" height="30" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.22)"/>
+<rect x="1076" y="636" width="3" height="30" rx="1.5" fill="#2e5aa8"/>
+<text x="1147.0" y="655" class="c">Resource Manager</text>
+<text x="36" y="690" class="cap">Numbers 1-9 match the request path under the diagram. Agents run inside valz-api; boxes in band 4 are the Google models they call.</text>
+</svg>
       </div>
 
-      <!-- ============ OWNER CARDS ============ -->
+      <section>
+        <p class="section-eyebrow">The numbers in the diagram</p>
+        <h2>Request path</h2>
+        <ol class="path">
+          <li><b>1 · Enter.</b> A person opens <code>https://valz.&lt;domain&gt;</code>. Cloud DNS points at one global IP; Cloud Armor filters the request; the external Application Load Balancer terminates TLS and serves cached static files from Cloud CDN; Identity-Aware Proxy signs managers in with their Google account.</li>
+          <li><b>2 · Serve and sign.</b> The load balancer routes to <code>valz-frontend</code> (SvelteKit). Its <code>/api/*</code> proxy calls <code>valz-api</code> with a service-to-service ID token. For a new clip, <code>valz-api</code> returns a V4 signed URL (signed through the IAM Credentials API), so the video never passes through Cloud Run.</li>
+          <li><b>3 · Upload.</b> The browser PUTs the clip (up to 550 MB) to the <code>raw-clips</code> bucket with a resumable upload. Cloud Run's 32 MiB request limit is the reason uploads bypass it.</li>
+          <li><b>4 · Orchestrate.</b> The <code>object.finalized</code> event reaches Eventarc, which starts the <code>valz-pipeline</code> workflow. The workflow runs the Transcoder API, then the <code>valz-perception</code> Cloud Run job (keyframes and motion energy) and the Video Intelligence person-detection call in parallel, then calls the agents on <code>valz-api</code>.</li>
+          <li><b>5 · See.</b> The Safety Agent sends keyframes and the safety rules to Gemini (multimodal) and gets back segments classed <code>VA</code>, a Muda type, or <code>UNCERTAIN</code> when confidence is under 0.75.</li>
+          <li><b>6 · Suggest.</b> The Gemba Kaizen Engine (plain Python) computes cycle time, VA% / NVA% and projected hours per shift. The Gemba Kaizen Agent retrieves countermeasure cards from Vertex AI RAG Engine and asks Gemini for 2–5 cards in a strict JSON schema. ROI is computed by the engine, never by the model.</li>
+          <li><b>7 · Ask.</b> Each <code>UNCERTAIN</code> segment is published to Pub/Sub (<code>segment.uncertain</code>). The Voice Agent turns it into a short question, speaks it with Text-to-Speech in the operator's language, transcribes the answer with Speech-to-Text and marks the segment <code>verified</code>. Cloud Translation covers fixed labels in the three report languages.</li>
+          <li><b>8 · Remember.</b> Runs, segments, cards, decisions and questions are Firestore documents. <code>valz-api</code> listens to them and streams changes to the dashboard as server-sent events, so the browser never talks to Firestore directly.</li>
+          <li><b>9 · Learn.</b> A Cloud Scheduler job copies approved cards and per-shift metrics into BigQuery. Looker Studio reads the dataset for the plant-wide report.</li>
+        </ol>
+      </section>
+
+      <section id="service-map">
+        <p class="section-eyebrow">Every Google Cloud service in use</p>
+        <h2>Service map and who deploys it</h2>
+        <p class="lead">
+          “Deployed by” names the tool that creates or updates the service. Cloud Build builds and
+          deploys both containers; everything else is a one-off <code>gcloud</code> setup that the
+          guide walks through in order.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Service</th><th>Role in VALZ</th><th>Replaces today</th><th>Deployed by</th><th>Guide</th></tr>
+          </thead>
+          <tbody>
+            <tr class="grp"><td colspan="5">Edge and access</td></tr>
+            <tr><td>Cloud DNS</td><td>Zone and A record for the public name</td><td>nginx <code>server_name</code></td><td>gcloud dns</td><td><a href="DEPLOYMENT.md#15-load-balancer-cloud-cdn-cloud-armor-iap-and-dns">§15</a></td></tr>
+            <tr><td>Cloud Armor</td><td>WAF rules, per-IP rate limit, optional plant IP allow-list</td><td>none</td><td>gcloud compute security-policies</td><td><a href="DEPLOYMENT.md#15-load-balancer-cloud-cdn-cloud-armor-iap-and-dns">§15</a></td></tr>
+            <tr><td>External Application Load Balancer</td><td>One HTTPS entry, managed certificate, routes to Cloud Run and the static bucket</td><td><code>deploy/nginx.conf</code></td><td>gcloud compute</td><td><a href="DEPLOYMENT.md#15-load-balancer-cloud-cdn-cloud-armor-iap-and-dns">§15</a></td></tr>
+            <tr><td>Cloud CDN</td><td>Caches static assets and demo clips at the edge</td><td>none</td><td>flag on the backend service and bucket</td><td><a href="DEPLOYMENT.md#15-load-balancer-cloud-cdn-cloud-armor-iap-and-dns">§15</a></td></tr>
+            <tr><td>Identity-Aware Proxy</td><td>Sign-in for managers, no passwords in the app</td><td>no authentication</td><td>flag on the backend service</td><td><a href="DEPLOYMENT.md#15-load-balancer-cloud-cdn-cloud-armor-iap-and-dns">§15</a></td></tr>
+            <tr class="grp"><td colspan="5">Compute and orchestration</td></tr>
+            <tr><td>Cloud Run <code>valz-frontend</code></td><td>SvelteKit dashboard and <code>/api/*</code> proxy</td><td><code>frontend</code> container</td><td>Cloud Build → <code>gcloud run deploy</code></td><td><a href="DEPLOYMENT.md#14-cloud-run-valz-frontend">§14</a></td></tr>
+            <tr><td>Cloud Run <code>valz-api</code></td><td>FastAPI with the Safety, Gemba Kaizen and Voice agents</td><td><code>api</code> container</td><td>Cloud Build → <code>gcloud run deploy</code></td><td><a href="DEPLOYMENT.md#11-cloud-run-valz-api">§11</a></td></tr>
+            <tr><td>Cloud Run job <code>valz-perception</code></td><td>Keyframe sampling and motion energy for each clip</td><td>OpenCV code inside the API process</td><td>Cloud Build → <code>gcloud run jobs deploy</code></td><td><a href="DEPLOYMENT.md#12-cloud-run-job-valz-perception">§12</a></td></tr>
+            <tr><td>Workflows</td><td>The pipeline orchestrator (node 05)</td><td>in-process function calls</td><td><code>gcloud workflows deploy</code></td><td><a href="DEPLOYMENT.md#13-workflows-and-eventarc">§13</a></td></tr>
+            <tr><td>Eventarc</td><td>Starts the workflow when a clip lands in <code>raw-clips</code></td><td>the upload request itself</td><td><code>gcloud eventarc triggers create</code></td><td><a href="DEPLOYMENT.md#13-workflows-and-eventarc">§13</a></td></tr>
+            <tr><td>Cloud Tasks</td><td>Retries unanswered operator questions with back-off</td><td>none</td><td><code>gcloud tasks queues create</code></td><td><a href="DEPLOYMENT.md#17-cloud-tasks-and-cloud-scheduler">§17</a></td></tr>
+            <tr><td>Cloud Scheduler</td><td>Nightly BigQuery sync</td><td>none</td><td><code>gcloud scheduler jobs create</code></td><td><a href="DEPLOYMENT.md#17-cloud-tasks-and-cloud-scheduler">§17</a></td></tr>
+            <tr class="grp"><td colspan="5">Managed AI</td></tr>
+            <tr><td>Vertex AI: Gemini (vision)</td><td>Safety Agent: keyframes → labelled segments with confidence</td><td>OpenRouter, Qwen vision model (<code>VLM_MODEL</code>)</td><td>enable API, grant <code>aiplatform.user</code></td><td><a href="DEPLOYMENT.md#7-vertex-ai-gemini">§7</a></td></tr>
+            <tr><td>Vertex AI: Gemini (text)</td><td>Gemba Kaizen Agent and Voice Agent answers, strict JSON output</td><td>OpenRouter (<code>LSS_LLM_MODEL</code>)</td><td>same as above</td><td><a href="DEPLOYMENT.md#7-vertex-ai-gemini">§7</a></td></tr>
+            <tr><td>Vertex AI RAG Engine</td><td>Retrieval over countermeasure cards and plant SOPs</td><td><code>knowledge/lss_cards.json</code> read from disk</td><td>Python SDK script, run once and on change</td><td><a href="DEPLOYMENT.md#8-vertex-ai-rag-engine">§8</a></td></tr>
+            <tr><td>Video Intelligence API</td><td>Person detection and tracking, shot changes</td><td>YOLOv8 and BLIP in the API image</td><td>enable API</td><td><a href="DEPLOYMENT.md#9-video-intelligence-api-and-transcoder-api">§9</a></td></tr>
+            <tr><td>Transcoder API</td><td>H.264 MP4 plus a browser preview from any upload</td><td><code>video_convert.py</code> with ffmpeg</td><td>enable API; job created by the workflow</td><td><a href="DEPLOYMENT.md#9-video-intelligence-api-and-transcoder-api">§9</a></td></tr>
+            <tr><td>Speech-to-Text v2</td><td>Operator answers, Thai / Japanese / English</td><td>browser voice and <code>/voice/transcribe</code></td><td>recognizer created with gcloud</td><td><a href="DEPLOYMENT.md#10-speech-to-text-text-to-speech-and-translation">§10</a></td></tr>
+            <tr><td>Text-to-Speech</td><td>Spoken questions and answers (Chirp 3 HD voices)</td><td>ElevenLabs</td><td>enable API</td><td><a href="DEPLOYMENT.md#10-speech-to-text-text-to-speech-and-translation">§10</a></td></tr>
+            <tr><td>Cloud Translation</td><td>Fixed labels and UI strings in the report languages</td><td>strings in the repo</td><td>enable API</td><td><a href="DEPLOYMENT.md#10-speech-to-text-text-to-speech-and-translation">§10</a></td></tr>
+            <tr class="grp"><td colspan="5">State and analytics</td></tr>
+            <tr><td>Cloud Storage</td><td>Buckets: <code>raw-clips</code>, <code>processed</code>, <code>static</code></td><td>Docker volumes, files in the repo</td><td>gcloud storage</td><td><a href="DEPLOYMENT.md#3-cloud-storage">§3</a></td></tr>
+            <tr><td>Firestore</td><td>State store (node 07): runs, segments, cards, decisions, questions, voice-audio cache</td><td>browser storage, SQLite in <code>/app/data</code></td><td>gcloud firestore</td><td><a href="DEPLOYMENT.md#4-firestore">§4</a></td></tr>
+            <tr><td>Pub/Sub</td><td>Events: <code>clip.uploaded</code>, <code>segment.uncertain</code>, <code>alert.raised</code></td><td>none</td><td>gcloud pubsub</td><td><a href="DEPLOYMENT.md#5-pubsub">§5</a></td></tr>
+            <tr><td>BigQuery</td><td>Cross-shift analytics: waste, ROI, decisions</td><td>none</td><td><code>bq mk</code></td><td><a href="DEPLOYMENT.md#16-bigquery-and-looker-studio">§16</a></td></tr>
+            <tr><td>Looker Studio</td><td>Plant-wide KPI report for managers</td><td>none</td><td>built in the Looker Studio UI</td><td><a href="DEPLOYMENT.md#16-bigquery-and-looker-studio">§16</a></td></tr>
+            <tr class="grp"><td colspan="5">Platform, security and delivery</td></tr>
+            <tr><td>IAM and service accounts</td><td>One least-privilege identity per service; no API keys anywhere</td><td><code>OPENROUTER_API_KEY</code>, <code>ELEVENLABS_API_KEY</code></td><td>gcloud iam</td><td><a href="DEPLOYMENT.md#1-service-accounts-and-iam">§1</a></td></tr>
+            <tr><td>Secret Manager</td><td>The few remaining secrets (IAP client secret, alert webhook)</td><td><code>.env</code> files</td><td>gcloud secrets</td><td><a href="DEPLOYMENT.md#6-secret-manager-and-cloud-kms">§6</a></td></tr>
+            <tr><td>Cloud KMS</td><td>Customer-managed key for the footage buckets</td><td>none</td><td>gcloud kms</td><td><a href="DEPLOYMENT.md#6-secret-manager-and-cloud-kms">§6</a></td></tr>
+            <tr><td>Artifact Registry</td><td>Container images for both services and the job</td><td>local <code>docker build</code></td><td>gcloud artifacts</td><td><a href="DEPLOYMENT.md#2-artifact-registry">§2</a></td></tr>
+            <tr><td>Cloud Build</td><td>Builds images and deploys to Cloud Run on every push to <code>main</code></td><td>none (no CI in the repo)</td><td>gcloud builds triggers</td><td><a href="DEPLOYMENT.md#18-cloud-build-and-cloud-deploy">§18</a></td></tr>
+            <tr><td>Cloud Deploy</td><td>Promotes a release from staging to production</td><td>none</td><td>gcloud deploy</td><td><a href="DEPLOYMENT.md#18-cloud-build-and-cloud-deploy">§18</a></td></tr>
+            <tr><td>Cloud Logging, Monitoring, Trace, Error Reporting</td><td>Logs, uptime check, alerts, latency traces, grouped exceptions</td><td><code>docker logs</code></td><td>automatic on Cloud Run; alerts with gcloud</td><td><a href="DEPLOYMENT.md#19-logging-monitoring-trace-error-reporting-and-budgets">§19</a></td></tr>
+            <tr><td>Billing budgets</td><td>Alert before a runaway Gemini or Video Intelligence bill</td><td>none</td><td>gcloud billing budgets</td><td><a href="DEPLOYMENT.md#19-logging-monitoring-trace-error-reporting-and-budgets">§19</a></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="code-changes">
+        <p class="section-eyebrow">Moving the repo to the target</p>
+        <h2>What changes in the code</h2>
+        <table>
+          <thead><tr><th>Today</th><th>On Google Cloud</th></tr></thead>
+          <tbody>
+            <tr><td><code>openrouter_client.py</code></td><td>A thin <code>google-genai</code> client in Vertex AI mode, authenticated with the service account (no API key). <code>VLM_MODEL</code> and <code>LSS_LLM_MODEL</code> keep their names and take Gemini model IDs.</td></tr>
+            <tr><td><code>vlm_action_model.py</code>, <code>safety_agent.py</code></td><td>Send keyframes (or the transcoded clip) to Gemini; keep the same segment schema and the 0.75 confidence rule.</td></tr>
+            <tr><td><code>person_count_model.py</code>, <code>video_action_model.py</code> (YOLOv8, BLIP)</td><td>Video Intelligence <code>PERSON_DETECTION</code>. The local models stay available as a fallback, which keeps the API image under 1 GB if they are dropped.</td></tr>
+            <tr><td><code>lss_agent.py</code> keyword retrieval over <code>knowledge/lss_cards.json</code></td><td>RAG Engine retrieval, with <code>lss_cards.json</code> imported as the first corpus file.</td></tr>
+            <tr><td><code>voice_agent.py</code> (ElevenLabs, SQLite in <code>/app/data</code>)</td><td>Text-to-Speech and Speech-to-Text; audio cache in the <code>processed</code> bucket, metadata in Firestore. Cloud Run disks are ephemeral, so nothing may stay in <code>/app/data</code>.</td></tr>
+            <tr><td><code>video_convert.py</code> (ffmpeg)</td><td>Transcoder API job started by the workflow.</td></tr>
+            <tr><td><code>/analysis/analyze/upload</code> receives the file</td><td>New <code>POST /api/uploads</code> returns a signed URL; the analysis endpoints accept a <code>gs://</code> URI instead of a file. Status and results move to Firestore.</td></tr>
+            <tr><td>Frontend <code>/api/[...path]</code> proxy to <code>AI_BACKEND_URL</code></td><td>Same proxy, but it attaches a Google ID token for the <code>valz-api</code> audience and no longer streams the video. Set <code>ALLOW_BACKEND_OVERRIDE=false</code>.</td></tr>
+            <tr><td><code>docker-compose.yml</code>, <code>deploy/nginx.conf</code></td><td>Kept for local development. Production uses the load balancer and Cloud Run.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
       <section>
         <p class="section-eyebrow">Delegation</p>
         <h2>One owner per box, one contract per arrow</h2>
         <div class="cards">
           <div class="card">
-            <p class="eyebrow">Nodes 01 · 02 · Perception</p>
-            <div class="card-header">
-              <span class="owner">P1</span>
-              <h3>Vision Pipeline Engineer</h3>
-            </div>
-            <h4>Tasks</h4>
+            <p class="eyebrow">Band 3 · Ingest &amp; perception</p>
+            <div class="card-header"><span class="owner">P1</span><h3>Vision Pipeline Engineer</h3></div>
+            <h4>Services</h4>
             <ul>
-              <li>
-                Clip mode: FFmpeg decode; OpenCV frame-diff → motion energy;
-                keep keyframes where motion changes + a steady baseline sample
-              </li>
-              <li>
-                Live mode: read the camera stream continuously, sample frames,
-                run safety rules only
-              </li>
-              <li>
-                BLIP captions each keyframe; MiniLM matches captions against
-                P2's label prompts
-              </li>
-              <li>
-                Resolved frames → segments.json to P3; unresolved frames + raw
-                keyframes → P2
-              </li>
-              <li>Batch and cache to disk by clip_id</li>
+              <li>Cloud Storage <code>raw-clips</code> and <code>processed</code>, with CORS for the browser PUT</li>
+              <li>Transcoder API job template (H.264, 720p preview)</li>
+              <li>Cloud Run job <code>valz-perception</code>: keyframes where motion changes plus a steady baseline sample</li>
+              <li>Video Intelligence person detection; map its output to the people-count fields</li>
             </ul>
             <h4>Contract</h4>
-            <p class="contract">
-              IN live stream + MP4 from P5's camera<br />OUT segments.json
-              (resolved_by blip) → P3 · unresolved → P2
-            </p>
+            <p class="contract">IN gs:// clip from <code>raw-clips</code><br />OUT keyframes + people count in <code>processed/&lt;run_id&gt;/</code> → P2</p>
             <h4>Done when</h4>
-            <p class="done">
-              A 20 s clip becomes labeled segments in under 30 s, and the live
-              sampler keeps up with the camera without falling behind.
-            </p>
+            <p class="done">A 20 s clip becomes keyframes and a people count in under 30 s, and the workflow re-runs the same clip to the same output.</p>
           </div>
 
           <div class="card">
-            <p class="eyebrow">Node 03 · Perception</p>
-            <div class="card-header">
-              <span class="owner">P2</span>
-              <h3>Labels, Safety Rules &amp; Qwen Escalation</h3>
-            </div>
-            <h4>Tasks</h4>
+            <p class="eyebrow">Band 4 · Reasoning</p>
+            <div class="card-header"><span class="owner">P2</span><h3>Gemini Prompts, Safety Rules &amp; RAG Corpus</h3></div>
+            <h4>Services</h4>
             <ul>
-              <li>
-                Own the label vocabulary used by both BLIP matching and Qwen: VA
-                / NNVA / NVA waste types + safety rules with severity (helmet,
-                running, phone, person down)
-              </li>
-              <li>
-                Qwen on OpenRouter (default qwen/qwen3.7-flash) runs only on
-                frames BLIP couldn't resolve: keyframe + label prompt → Yes/No
-                verdict
-              </li>
-              <li>
-                If Qwen can't tell either → class UNCERTAIN, status
-                needs_verification. Never guess.
-              </li>
-              <li>
-                JSON-schema validation + 1 retry; cache verdicts per clip_id as
-                the demo fallback
-              </li>
-              <li>
-                Log how often Qwen is called (cost and latency story for the
-                pitch)
-              </li>
+              <li>Vertex AI Gemini: the vision prompt, with the 7 Muda definitions and the safety rules (helmet, running, phone, person down)</li>
+              <li>Segments under 0.75 confidence stay <code>UNCERTAIN</code>; never guess</li>
+              <li>Vertex AI RAG Engine corpus: countermeasure cards, SOPs, past approved cards</li>
+              <li>JSON-schema validation, one retry, cached verdicts per run for the demo</li>
             </ul>
             <h4>Contract</h4>
-            <p class="contract">
-              IN unresolved frames + keyframes from P1<br />OUT verdicts (same
-              segment schema, resolved_by vlm or UNCERTAIN) → P3
-            </p>
+            <p class="contract">IN keyframes + people count from P1<br />OUT segments (<code>resolved_by</code> gemini or null) → P3</p>
             <h4>Done when</h4>
-            <p class="done">
-              The demo clip gives the same segments 3 runs in a row, the
-              blocked-camera moment comes out grey after Qwen also fails, and
-              the staged no-helmet moment is flagged high.
-            </p>
+            <p class="done">The demo clip gives the same segments three runs in a row, the blocked-camera moment comes out grey, and the staged no-helmet moment is flagged high.</p>
           </div>
 
           <div class="card">
-            <p class="eyebrow">Nodes 04 · 05 · 06 · Kaizen Core</p>
-            <div class="card-header">
-              <span class="owner coral">P3</span>
-              <h3>Backend &amp; Kaizen Engine</h3>
-            </div>
-            <h4>Tasks</h4>
+            <p class="eyebrow">Bands 2 · 3 · 5 · Core</p>
+            <div class="card-header"><span class="owner">P3</span><h3>Backend, Orchestration &amp; Platform</h3></div>
+            <h4>Services</h4>
             <ul>
-              <li>
-                FastAPI app: clip runner, live-watch control, state endpoints,
-                SSE stream, decision endpoint
-              </li>
-              <li>
-                Merge BLIP segments + Qwen verdicts into one timeline per clip
-              </li>
-              <li>
-                Kaizen Engine: cycle time mean + σ (Cpk vs takt when takt is
-                known), VA / NNVA / NVA %, DMAIC Action Cards with ROI formula
-              </li>
-              <li>
-                Alert router: live events go out immediately; high severity
-                pre-empts pending questions
-              </li>
-              <li>
-                Store the operator's language (from the agent or dashboard
-                picker); write alerts + cards in it
-              </li>
-              <li>
-                Agent tool endpoints for P4 (alerts, ack, pending question,
-                verify, briefing)
-              </li>
-              <li>
-                Day 0: publish mock segments.json (with one safety event) so
-                P4/P5 never wait
-              </li>
+              <li>Cloud Run <code>valz-api</code>: Gemba Kaizen Engine, agents, SSE, signed-URL endpoint</li>
+              <li>Workflows, Eventarc, Pub/Sub, Cloud Tasks, Cloud Scheduler</li>
+              <li>Firestore data model and BigQuery sync</li>
+              <li>Platform: project and APIs, IAM, Secret Manager, KMS, Artifact Registry, Cloud Build / Deploy, Logging and budgets</li>
             </ul>
             <h4>Contract</h4>
-            <p class="contract">
-              IN segments (P1) · verdicts (P2) · tool calls (P4) · decisions
-              (P5)<br />OUT state + cards + alerts via REST/SSE
-            </p>
+            <p class="contract">IN segments from P2, answers from P4<br />OUT cards, alerts and the SSE stream → P4 / P5</p>
             <h4>Done when</h4>
-            <p class="done">
-              Mock segments go in, cards come out, a verify call reaches the
-              dashboard in under 1 s, and a live high-severity event reaches the
-              voice agent in under 1 s.
-            </p>
+            <p class="done">Pushing to <code>main</code> deploys both services, and a clip dropped in <code>raw-clips</code> ends as cards in Firestore with no manual step.</p>
           </div>
 
           <div class="card">
-            <p class="eyebrow">Node 07 · Interface</p>
-            <div class="card-header">
-              <span class="owner coral">P4</span>
-              <h3>Voice Agent Engineer</h3>
-            </div>
-            <h4>Tasks</h4>
+            <p class="eyebrow">Band 4 · Voice</p>
+            <div class="card-header"><span class="owner">P4</span><h3>Voice Agent Engineer</h3></div>
+            <h4>Services</h4>
             <ul>
-              <li>
-                One operator persona (short, polite, hands-free) that replies in
-                the operator's language, across all 70 ElevenLabs languages
-              </li>
-              <li>Three modes: ask, alert, brief</li>
-              <li>
-                Alert mode: high severity interrupts any open question; speak
-                the alert, then ask for a spoken acknowledgement
-              </li>
-              <li>
-                Ask mode opener names the timestamp, e.g. "I saw a 4-second
-                pause at 00:16. Did a part jam?"
-              </li>
-              <li>
-                Map answer → root-cause category (equipment stop, material
-                shortage, …) → verify
-              </li>
-              <li>
-                Hour 1: test STT/TTS for the demo languages (Thai + at least 2
-                others); set up a fallback
-              </li>
+              <li>Speech-to-Text v2 recognizers for <code>th-TH</code>, <code>ja-JP</code>, <code>en-US</code></li>
+              <li>Text-to-Speech Chirp 3 HD voices per language</li>
+              <li>Cloud Translation for fixed labels; Gemini for the questions themselves</li>
+              <li>Pub/Sub subscription on <code>segment.uncertain</code> and <code>alert.raised</code></li>
             </ul>
             <h4>Contract</h4>
-            <p class="contract">
-              IN alerts · pending question · briefing (P3)<br />OUT POST
-              /api/agent/verify · /api/agent/ack (with lang) → P3
-            </p>
+            <p class="contract">IN question or alert from P3<br />OUT <code>POST /api/agent/verify</code> with answer + root cause</p>
             <h4>Done when</h4>
-            <p class="done">
-              A spoken answer in any demo language turns a grey segment to
-              "verified" in about 3 s, and a high-severity alert is spoken
-              within 2 s of reaching the Orchestrator.
-            </p>
+            <p class="done">An <code>UNCERTAIN</code> segment is asked in Thai, answered by voice and shown as <code>verified</code> with the ROI recalculated, in under 20 s.</p>
           </div>
 
           <div class="card">
-            <p class="eyebrow">Nodes 00 · 08 · Interface + Stage</p>
-            <div class="card-header">
-              <span class="owner">P5</span>
-              <h3>Dashboard, Demo &amp; Pitch</h3>
-            </div>
-            <h4>Tasks</h4>
+            <p class="eyebrow">Bands 1 · 2 · Interface + stage</p>
+            <div class="card-header"><span class="owner coral">P5</span><h3>Dashboard, Edge, Demo &amp; Pitch</h3></div>
+            <h4>Services</h4>
             <ul>
-              <li>
-                Set up the station camera (live) and film before/after clips: a
-                deliberate long reach, a blocked-view pause, a no-helmet moment
-              </li>
-              <li>
-                SvelteKit app: video + overlay on the left; VA/NVA/grey timeline
-                synced to playback; DMAIC cards on the right
-              </li>
-              <li>
-                SSE via EventSource; red alert banner for safety / critical
-                events
-              </li>
-              <li>
-                Language picker (sets operator lang); card buttons Approve Trial
-                · Dismiss; embedded voice orb
-              </li>
-              <li>
-                3-min script with a live language switch mid-demo, checkpoint
-                slide, backup screen recording
-              </li>
+              <li>Cloud Run <code>valz-frontend</code> (SvelteKit)</li>
+              <li>Load balancer, Cloud CDN, Cloud Armor, IAP and DNS</li>
+              <li>Cloud Storage <code>static</code> for demo clips; Looker Studio report</li>
+              <li>Demo clips, backup recording and the 3-minute pitch</li>
             </ul>
             <h4>Contract</h4>
-            <p class="contract">
-              IN GET state + SSE (P3)<br />OUT POST /api/cards/{id}/decision ·
-              PUT /api/operator → P3
-            </p>
+            <p class="contract">IN cards, segments and SSE from P3<br />OUT <code>POST /api/cards/{id}/decision</code></p>
             <h4>Done when</h4>
-            <p class="done">
-              The full demo runs end-to-end from cached data, even on bad Wi-Fi.
-            </p>
+            <p class="done">The public URL works behind sign-in, the cached demo runs with the backend off, and the pitch runs end to end three times without a restart.</p>
           </div>
         </div>
       </section>
 
-      <!-- ============ CONTRACTS ============ -->
       <section>
         <p class="section-eyebrow">Interfaces · freeze these in hour 1</p>
         <h2>Shared contracts</h2>
         <div class="contracts">
           <div class="card">
-            <p class="eyebrow">P1 internal → P2 · frames.json</p>
+            <p class="eyebrow">P5 → P3 → P1 · upload</p>
             <pre>
-{
-  "clip_id": "line2_before",
-  "mode": "clip",            // clip | live
-  "frames": [
-    { "t": 16.5,
-      "path": "frames/line2_before/0033.jpg",
-      "motion": 0.08,
-      "keyframe": true,
-      "caption": "a person standing at a table",
-      "label": null,         // no match → escalate
-      "resolved": false }
-  ]
-}</pre>
+POST /api/uploads
+{ "filename": "cell3.mp4",
+  "size": 183500000,
+  "content_type": "video/mp4",
+  "station_name": "Cell 3",
+  "language": "th" }
+
+200
+{ "run_id": "run_20261017_0412",
+  "upload_url": "https://storage.googleapis.com/…?X-Goog-Signature=…",
+  "gcs_uri": "gs://&lt;project&gt;-valz-raw/run_20261017_0412/cell3.mp4",
+  "expires_in_s": 900 }
+
+# browser: PUT the bytes to upload_url
+# (resumable session, same Content-Type)</pre>
           </div>
           <div class="card">
-            <p class="eyebrow">P1 + P2 → P3 · segments.json</p>
+            <p class="eyebrow">P3 → P4 · Pub/Sub segment.uncertain</p>
             <pre>
 {
-  "clip_id": "line2_before",
-  "mode": "clip",
-  "cycle_time_s": 21.4,
-  "segments": [
-    { "id": "s03", "start": 9.0, "end": 11.8,
-      "activity": "reaching", "class": "NVA_MOTION",
-      "resolved_by": "blip", "status": "auto",
-      "evidence": "left hand reaches ~55 cm across table" },
-    { "id": "s05", "start": 16.0, "end": 20.0,
-      "activity": "unknown", "class": "UNCERTAIN",
-      "resolved_by": null, "status": "needs_verification",
-      "evidence": "view blocked; Qwen also unsure" }
-  ],
-  "safety_events": [
-    { "id": "e01", "rule_id": "no_helmet",
-      "severity": "high", "start": 4.0, "end": 7.0,
-      "resolved_by": "vlm" }
-  ]
+  "run_id": "run_20261017_0412",
+  "segment_id": "s05",
+  "start": 16.0, "end": 20.0,
+  "lang": "th",
+  "prompt_hint": "4 s pause, view blocked",
+  "attempt": 1
 }
-// class: VA | NNVA | NVA_MOTION | NVA_TRANSPORT
-//        | NVA_WAITING | NVA_SEARCH | UNCERTAIN
-// resolved_by: blip | vlm | operator | null
-// status: auto | needs_verification | verified
-// severity: high | medium | low</pre>
+// Delivered by push to valz-api with an OIDC token.
+// Unanswered after 5 min → Cloud Tasks re-publishes,
+// attempt + 1, then raises alert.raised.</pre>
           </div>
           <div class="card">
-            <p class="eyebrow">P3 → P4 / P5 · DMAIC action card</p>
+            <p class="eyebrow">P2 → P3 · segment (Firestore runs/{run_id}/segments)</p>
             <pre>
-{
-  "card_id": "L01",
-  "lang": "en",                    // operator's language
-  "waste": "NVA_MOTION",
-  "segment_ids": ["s03"],
-  "define":  "Reach to Bin B in 100% of cycles",
-  "measure": { "avg_s": 2.4, "sd_s": 0.3,
-               "cycles_seen": 3 },
-  "analyze": "Bin B sits outside the normal work zone",
-  "improve": "Move Bin B 25 cm closer to fixture",
-  "control": "Tape bin position; re-film in 1 week",
-  "seconds_saved_per_cycle": 1.6,
-  "cycles_per_shift": 1346,        // 8 h × 3600 / 21.4 s
-  "hours_saved_per_shift": 0.60,   // 1.6 × 1346 / 3600
-  "throughput_gain_pct": 8.1,      // 21.4 / 19.8 − 1
-  "status": "proposed"             // trial_approved | dismissed
-}</pre>
+{ "id": "s05", "start": 16.0, "end": 20.0,
+  "activity": "unknown",
+  "class": "UNCERTAIN",
+  "confidence": 0.41,
+  "resolved_by": null,        // gemini | operator | null
+  "status": "needs_verification",
+  "evidence": "view blocked" }
+// class: VA | NVA_MOTION | NVA_TRANSPORT
+//        | NVA_WAITING | NVA_SEARCH
+//        | SAFETY_ERGO | SOP_DEVIATION | UNCERTAIN
+// status: auto | needs_verification | verified</pre>
           </div>
           <div class="card">
-            <p class="eyebrow">P3 → P4 / P5 · alert</p>
+            <p class="eyebrow">P3 → P4 / P5 · Gemba Kaizen action card</p>
             <pre>
 {
-  "alert_id": "a01",
-  "kind": "safety",          // safety | critical | important
-  "severity": "high",        // high   → interrupt now
-                             // medium → next pause
-                             // low    → dashboard only
-  "mode": "live",            // live → seconds · clip → after analysis
-  "source": { "event_id": "e01",
-              "rule_id": "no_helmet", "t": 4.0 },
-  "lang": "th",              // any ElevenLabs language
-  "message": "กรุณาสวมหมวกนิรภัย",
-  "status": "pending"        // spoken | acknowledged
-}</pre>
+  "id": "K01",
+  "title": "Move Bin B closer to the fixture",
+  "category": "NVA_MOTION",
+  "priority": "high",           // high | medium | low
+  "observation": "Reach to Bin B in 100% of cycles",
+  "evidence": [{ "start_time": 9.0, "end_time": 11.8,
+                 "note": "left hand reaches ~55 cm" }],
+  "root_cause": "Bin B sits outside the work zone",
+  "recommendation": "Move Bin B 25 cm closer",
+  "kb_card_ids": ["KC-MOT-02"], // from RAG Engine
+  "confidence": 0.82,
+  "roi": { "hours_saved_per_shift": 0.60,
+           "throughput_gain_percent": 8.1,
+           "basis": "1.6 s × 1,346 cycles / 3600" }
+}
+// roi is computed by the engine, not the model</pre>
+          </div>
+          <div class="card">
+            <p class="eyebrow">P3 · Firestore data model</p>
+            <pre>
+runs/{run_id}
+  status        queued | transcoding | perceiving
+                | reasoning | ready | failed
+  source        { gcs_uri, name, station_name }
+  language      en | th | ja
+  metrics       { va_percent, nva_hours_per_shift, … }
+  expireAt      timestamp  (TTL policy, 90 days)
+runs/{run_id}/segments/{id}
+runs/{run_id}/cards/{id}      + decision, decidedBy
+runs/{run_id}/questions/{id}  + answer, rootCause
+voice_cache/{hash}            → gs://…-processed/voice/</pre>
           </div>
           <div class="card">
             <p class="eyebrow">P3 API · consumed by P4 &amp; P5</p>
             <pre>
-POST   /api/clips               upload MP4 → run clip pipeline
-POST   /api/live                { camera_url } start live watch
-DELETE /api/live                stop live watch
-GET    /api/clips/{id}/state    segments + events + cards
-                                + metrics
-GET    /api/stream              SSE: segment / card / alert
-POST   /api/cards/{id}/decision approve_trial | dismiss
-PUT    /api/operator            { lang }
+# public, behind the load balancer
+POST /api/uploads                 signed URL (above)
+POST /api/analysis/analyze        { gcs_uri, … } → run_id
+GET  /api/runs/{id}               state + metrics + cards
+GET  /api/runs/{id}/stream        SSE from Firestore
+POST /api/cards/{id}/decision     approve | defer | reject
+GET  /api/lss/status              Gemba Kaizen Agent status
+POST /api/voice/chat · /speak · /transcribe
 
-# voice-agent tools (P4)
-GET  /api/agent/alerts          unacked alerts, high first
-POST /api/agent/ack             { alert_id, lang }
-GET  /api/agent/pending         next needs_verification Q
-POST /api/agent/verify          { segment_id, answer,
-                                  root_cause, lang }
-GET  /api/agent/briefing        top Gemba Kaizen cards for operator Q&amp;A</pre>
+# internal, OIDC only
+POST /internal/pipeline/reason    called by Workflows
+POST /internal/pubsub/uncertain   push subscription
+POST /internal/sync/bigquery      Cloud Scheduler</pre>
           </div>
         </div>
       </section>
 
-      <!-- ============ TIMELINE ============ -->
       <section>
         <p class="section-eyebrow">24-hour build plan</p>
         <h2>Integration gates</h2>
         <table>
-          <thead>
-            <tr>
-              <th>Hour</th>
-              <th>Milestone</th>
-              <th>Who</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Hour</th><th>Milestone</th><th>Who</th></tr></thead>
           <tbody>
-            <tr>
-              <td>H0–1</td>
-              <td>
-                Freeze the contracts on this page; everyone commits mock data
-                for their output. P4 tests ElevenLabs in the demo languages.
-              </td>
-              <td>All</td>
-            </tr>
-            <tr>
-              <td>H1–8</td>
-              <td>
-                Build in parallel against mocks. P5 sets up the camera and films
-                demo clips (incl. no-helmet moment) by H3 so P1/P2 work on real
-                footage.
-              </td>
-              <td>All</td>
-            </tr>
-            <tr class="gate">
-              <td>H8</td>
-              <td>
-                <strong>Gate 1:</strong> real clip → BLIP → (Qwen on unresolved)
-                → segments + safety events → DMAIC cards (P1→P2→P3). P4/P5 still
-                on mocks.
-              </td>
-              <td>P1 P2 P3</td>
-            </tr>
-            <tr>
-              <td>H8–14</td>
-              <td>
-                Connect voice ↔ backend ↔ dashboard; SSE live updates; approve
-                flow; live camera → alert push; language picker
-              </td>
-              <td>P1 P3 P4 P5</td>
-            </tr>
-            <tr class="gate">
-              <td>H14</td>
-              <td>
-                <strong>Gate 2:</strong> full loop on the demo clip: grey →
-                voice question → verified → ROI updates, and live no-helmet →
-                spoken alert in the operator's language → acknowledged
-              </td>
-              <td>All</td>
-            </tr>
-            <tr>
-              <td>H14–18</td>
-              <td>
-                Feature freeze. Cache all BLIP + Qwen output; tune label prompts
-                only.
-              </td>
-              <td>P1 P2 P3</td>
-            </tr>
-            <tr>
-              <td>H18–22</td>
-              <td>
-                Rehearse the 3-minute demo (incl. language switch) at least 3
-                times; record a backup video
-              </td>
-              <td>P4 P5</td>
-            </tr>
-            <tr>
-              <td>H22–24</td>
-              <td>
-                Polish the pitch and the checkpoint slide; final run-through
-              </td>
-              <td>All</td>
-            </tr>
+            <tr><td>H0–1</td><td>Freeze the contracts on this page. P3 creates the project, enables the APIs and the service accounts (guide §0–§1); everyone gets <code>roles/viewer</code> plus the roles for their own services.</td><td>All</td></tr>
+            <tr><td>H1–8</td><td>Build in parallel against mocks. P5 films demo clips (including the no-helmet moment) by H3 and uploads them to <code>raw-clips</code> so P1 and P2 work on real footage.</td><td>All</td></tr>
+            <tr class="gate"><td>H8</td><td><strong>Gate 1:</strong> a clip in <code>raw-clips</code> → Eventarc → Workflows → Transcoder → keyframes → Gemini segments → cards in Firestore (P1 → P2 → P3). P4 and P5 still on mocks.</td><td>P1 P2 P3</td></tr>
+            <tr><td>H8–14</td><td>Connect voice, backend and dashboard; SSE live updates; approve flow; language picker; load balancer, IAP and DNS in front of Cloud Run.</td><td>P1 P3 P4 P5</td></tr>
+            <tr class="gate"><td>H14</td><td><strong>Gate 2:</strong> full loop on the demo clip through the public URL: grey segment → Thai voice question → verified → ROI updates, with sign-in on.</td><td>All</td></tr>
+            <tr><td>H14–18</td><td>Feature freeze. Cache every Gemini output for the demo clips; tune prompts only. Set <code>min-instances=1</code> on both services so there is no cold start on stage.</td><td>P1 P2 P3</td></tr>
+            <tr><td>H18–22</td><td>Rehearse the 3-minute demo (including the language switch) at least three times; record a backup video.</td><td>P4 P5</td></tr>
+            <tr><td>H22–24</td><td>Polish the pitch and the checkpoint slide; final run-through; set the billing budget alert and scale <code>max-instances</code> down.</td><td>All</td></tr>
           </tbody>
         </table>
       </section>
 
       <div class="footer">
-        <span>valz · architecture &amp; delegation</span>
-        <span>Camera → BLIP (→ Qwen) → Kaizen Core → ElevenLabs</span>
+        <span>valz · architecture on google cloud</span>
+        <span>Browser → Cloud Storage → Workflows → Gemini → Firestore → dashboard</span>
       </div>
     </div>
   </body>
