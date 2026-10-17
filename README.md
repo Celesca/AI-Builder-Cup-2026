@@ -16,13 +16,13 @@ Built for the U-Hackathon AI track.
 
 Every layer runs on Google Cloud. The full architecture, with the request path, a table of every service and who deploys it,
 team delegation, shared data contracts and the 24-hour build plan, is in
-[docs/system_architecture.html](docs/system_architecture.html). To deploy it service by service, follow
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+[docs/system_architecture.html](docs/system_architecture.html). There are two ways to deploy it, from a single VM with Firebase
+to the fully managed design; see [Deploy on Google Cloud](#deploy-on-google-cloud).
 
 > **Status.** The architecture above is the target. The code in this repository still calls OpenRouter and ElevenLabs and runs
 > BLIP and YOLO itself; [What changes in the code](docs/system_architecture.html#code-changes) lists each swap, and
 > [Project status](#project-status) says what exists today. The dashboard, the Safety Agent, the Gemba Kaizen Agent and the
-> Voice Agent work now and run locally with Docker Compose.
+> Voice Agent work now, locally with Docker Compose or on one VM (see below).
 
 ### How a clip moves through Google Cloud
 
@@ -60,6 +60,32 @@ A segment's status moves from `auto` to `needs_verification` to `verified`. The 
 
 ## Deploy on Google Cloud
 
+Two paths, from the fewest Google services to the most managed. Pick one; the second is where the first grows.
+
+| | **Minimal: one VM + Firebase** | **Full: managed services** |
+|---|---|---|
+| Guide | [docs/DEPLOYMENT_VM.md](docs/DEPLOYMENT_VM.md) | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
+| Google products | Compute Engine, Firestore, Firebase Authentication, IAM | About 35: Cloud Run, Vertex AI, Workflows, Pub/Sub, Firestore, Cloud Storage, load balancer, IAP and more |
+| Code changes | **None** for part A (the VM); sign-in and Firestore for part B | Replace OpenRouter, ElevenLabs, YOLO and ffmpeg with Google services |
+| Models and speech | Unchanged: OpenRouter, ElevenLabs | Gemini, Speech-to-Text, Text-to-Speech, Video Intelligence |
+| Scale | One VM, no failover | Autoscaling Cloud Run, event-driven pipeline |
+| Best for | The hackathon, a pilot, one plant | Several plants, a managed pipeline |
+
+### Minimal: one VM and Firebase
+
+![VALZ on one VM with Firebase](images/system_architecture_minimal.png)
+
+The Docker Compose stack in this repository runs on one Compute Engine VM, with Caddy for HTTPS ([docker-compose.https.yml](docker-compose.https.yml),
+[deploy/Caddyfile](deploy/Caddyfile)). Part A needs no code changes. Part B adds Firestore for decisions that every manager sees and Firebase Authentication
+for Google sign-in. Until part B exists the site has no sign-in, so the guide has you turn on a Caddy password first.
+
+```bash
+# on the VM, after DNS points at it (docs/DEPLOYMENT_VM.md, part A)
+DOMAIN=valz.example.com docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
+```
+
+### Full: managed services
+
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) takes an empty project to a running system in 21 numbered sections, one per service or group
 of services, each with what it does for VALZ, the tool that deploys it, the commands and a check.
 
@@ -86,7 +112,8 @@ of services, each with what it does for VALZ, the tool that deploys it, the comm
 | §19 | Logging, Monitoring, Trace, Error Reporting, budgets | automatic plus gcloud |
 | §20–§21 | End-to-end check, tear down | — |
 
-The commands in the guide have not been run against a live project; check flags with `gcloud <command> --help`.
+The commands in both guides have not been run against a live project; check flags with `gcloud <command> --help`. The Compose override
+and the Caddy configuration for the VM path were validated with `docker compose config` and `caddy validate`.
 
 ## Project status
 
@@ -126,10 +153,16 @@ The commands in the guide have not been run against a live project; check flags 
 ├── DESIGN.md          The dashboard's design system
 ├── docs/
 │   ├── system_architecture.html  Architecture on Google Cloud, service map, delegation, contracts
-│   └── DEPLOYMENT.md             Per-service deployment guide
-├── deploy/nginx.conf  nginx for local Docker Compose (production uses the load balancer)
-├── docker-compose.yml Local full system: nginx → frontend → ai_backend
-└── images/            Architecture diagram
+│   ├── DEPLOYMENT_VM.md          Minimal deployment: one VM + Firebase
+│   └── DEPLOYMENT.md             Full deployment: per-service guide
+├── deploy/
+│   ├── nginx.conf     nginx for local Docker Compose
+│   ├── Caddyfile      HTTPS for the one-VM deployment (replaces nginx)
+│   ├── vm-startup.sh  Compute Engine startup script: installs Docker and git
+│   └── firebase/      Firestore rules, indexes and firebase.json (deny-all rules; the server uses the Admin SDK)
+├── docker-compose.yml        Full system: nginx → frontend → ai_backend (local development)
+├── docker-compose.https.yml  Override for the VM: Caddy instead of nginx, HTTPS on 80 and 443
+└── images/            Architecture diagrams (full and minimal)
 ```
 
 ## Run it locally

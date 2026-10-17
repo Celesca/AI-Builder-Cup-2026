@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// The browser never talks to Firestore. The dashboard's server (firebase-admin, running as the VM's service
+// account) reads and writes it, and the Admin SDK bypasses these rules. Everyone else is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

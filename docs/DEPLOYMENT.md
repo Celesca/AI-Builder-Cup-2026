@@ -2,7 +2,8 @@
 
 This guide deploys the whole system from an empty Google Cloud project, one service at a time, in dependency order.
 Each section says what the service does for VALZ, which tool deploys it, the commands, and how to check it worked.
-The architecture is in [system_architecture.html](system_architecture.html).
+The architecture is in [system_architecture.html](system_architecture.html). If you want the fewest Google services instead (one VM and
+Firebase), use [DEPLOYMENT_VM.md](DEPLOYMENT_VM.md).
 
 > **Read this first**
 >
