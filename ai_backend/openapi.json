@@ -1,0 +1,5617 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Video Action Detection API",
+    "description": "\nFind **when an action happens** in a video from a text prompt (e.g. `person running`), and **count the people** in it.\n\n* **video_action**: BLIP captions sampled frames, MiniLM compares each caption with the prompt.\n  YOLO counts people in parallel unless `count_people=false`.\n* **vlm_action**: a vision model on OpenRouter (default `qwen/qwen3.7-flash`) answers Yes/No per sampled frame\n  (\"is `<prompt>` happening?\") with a 0-100 confidence. Prompts can describe conditions, e.g. `worker not wearing a helmet`.\n  YOLO counts people in parallel unless `count_people=false`.\n* **person_count**: YOLOv8 nano person counting only.\n* **VALZ pipeline** (proof of concept): the **Safety Agent** (`/safety`) checks safety rules such as\n  `not wearing a helmet` or `running` and labels what the worker does per frame (value-adding, walking, waiting, ...);\n  the **Gemba Kaizen Agent** (`/lss`) turns that into Gemba Kaizen cards with ROI, citing a lean knowledge base,\n  using an LLM through OpenRouter (rule-based without `OPENROUTER_API_KEY`). Both agents run on OpenRouter models,\n  so this needs no GPU and no model weights. `/analysis/analyze` runs both;\n  `/demo` is an upload page for it.\n\nVideos can be uploaded (multipart) or given as a direct file URL (YouTube is not supported).\nThe raw OpenAPI spec is at [`/openapi.json`](/openapi.json); a copy is kept in `ai_backend/openapi.json`.\n",
+    "version": "1.3.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "API index",
+        "operationId": "root",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RootResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health check",
+        "operationId": "health_check",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video_action/status": {
+      "get": {
+        "tags": [
+          "video_action"
+        ],
+        "summary": "Action detector status",
+        "operationId": "get_video_action_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoActionStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vlm_action/status": {
+      "get": {
+        "tags": [
+          "vlm_action"
+        ],
+        "summary": "VLM (OpenRouter) detector status",
+        "operationId": "get_vlm_action_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VLMActionStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/person_count/status": {
+      "get": {
+        "tags": [
+          "person_count"
+        ],
+        "summary": "Person counter status",
+        "operationId": "get_person_count_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonCountStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video_action/detect": {
+      "post": {
+        "tags": [
+          "video_action"
+        ],
+        "summary": "Detect an action in a video from a URL",
+        "description": "Download a video from a direct file URL (not YouTube) and find the frames that match `prompt`,\nusing BLIP captions compared with MiniLM embeddings.\nWith `count_people` (default true), YOLO counts people in parallel and fills `person_count`.",
+        "operationId": "detect_video_action_from_url",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoActionRequest"
+              },
+              "examples": {
+                "basic": {
+                  "summary": "Find an action (defaults)",
+                  "value": {
+                    "video_url": "https://example.com/video.mp4",
+                    "prompt": "person running"
+                  }
+                },
+                "tuned": {
+                  "summary": "Stricter action match, no person count",
+                  "value": {
+                    "video_url": "https://example.com/video.mp4",
+                    "prompt": "person falling down",
+                    "action_weight": 0.8,
+                    "action_threshold": 0.5,
+                    "sample_fps": 2.0,
+                    "count_people": false
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoActionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video_action/detect/upload": {
+      "post": {
+        "tags": [
+          "video_action"
+        ],
+        "summary": "Detect an action in an uploaded video",
+        "description": "Upload a video (mp4, avi, mov, ...) and find the frames that match `prompt`,\nusing BLIP captions compared with MiniLM embeddings.\nWith `count_people` (default true), YOLO counts people in parallel and fills `person_count`.",
+        "operationId": "detect_video_action_from_upload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoActionUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoActionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vlm_action/detect": {
+      "post": {
+        "tags": [
+          "vlm_action"
+        ],
+        "summary": "Detect an action in a video from a URL with the VLM",
+        "description": "Download a video from a direct file URL (not YouTube) and find the frames where `prompt` is happening,\nby asking the vision model a Yes/No question per sampled frame.\nWith `count_people` (default true), YOLO counts people in parallel and fills `person_count`.",
+        "operationId": "detect_vlm_action_from_url",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VLMActionRequest"
+              },
+              "examples": {
+                "basic": {
+                  "summary": "Find an action (defaults)",
+                  "value": {
+                    "video_url": "https://example.com/video.mp4",
+                    "prompt": "person running"
+                  }
+                },
+                "safety": {
+                  "summary": "Safety check, Yes/No only (faster), no person count",
+                  "value": {
+                    "video_url": "https://example.com/video.mp4",
+                    "prompt": "worker not wearing a helmet",
+                    "confidence_threshold": 0.6,
+                    "describe": false,
+                    "count_people": false
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VLMActionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vlm_action/detect/upload": {
+      "post": {
+        "tags": [
+          "vlm_action"
+        ],
+        "summary": "Detect an action in an uploaded video with the VLM",
+        "description": "Upload a video (mp4, avi, mov, ...) and find the frames where `prompt` is happening,\nby asking the vision model a Yes/No question per sampled frame.\nWith `count_people` (default true), YOLO counts people in parallel and fills `person_count`.",
+        "operationId": "detect_vlm_action_from_upload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/VLMActionUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VLMActionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/person_count/detect": {
+      "post": {
+        "tags": [
+          "person_count"
+        ],
+        "summary": "Count people in a video from a URL",
+        "description": "Download a video from a direct file URL (not YouTube) and count people per sampled frame with YOLOv8 nano.",
+        "operationId": "count_people_from_url",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonCountRequest"
+              },
+              "examples": {
+                "basic": {
+                  "summary": "Count people (defaults)",
+                  "value": {
+                    "video_url": "https://example.com/video.mp4"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonCountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/person_count/detect/upload": {
+      "post": {
+        "tags": [
+          "person_count"
+        ],
+        "summary": "Count people in an uploaded video",
+        "description": "Upload a video (mp4, avi, mov, ...) and count people per sampled frame with YOLOv8 nano.",
+        "operationId": "count_people_from_upload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonCountUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonCountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/safety/detect": {
+      "post": {
+        "tags": [
+          "safety_agent"
+        ],
+        "summary": "Safety Agent on a video from a URL",
+        "description": "Check safety rules (Yes/No per frame) and label the worker's activity per frame with the vision model.\nReturns safety events, activity segments with Muda categories, and key-frame evidence.",
+        "operationId": "detect_safety_from_url",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafetyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/safety/detect/upload": {
+      "post": {
+        "tags": [
+          "safety_agent"
+        ],
+        "summary": "Safety Agent on an uploaded video",
+        "description": "Upload a video and check safety rules + activity per frame with the vision model.\n`rules`: one per line with an optional severity prefix, e.g. `high: not wearing a helmet`.",
+        "operationId": "detect_safety_from_upload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafetyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/safety/annotate": {
+      "post": {
+        "tags": [
+          "safety_agent"
+        ],
+        "summary": "Annotated safety video from a URL",
+        "description": "Run the Safety Agent, then return the video with person boxes and the rule name on every violation / near miss.",
+        "operationId": "annotate_safety_from_url",
+        "parameters": [
+          {
+            "name": "near_miss_margin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "description": "Draw amber NEAR MISS boxes within this confidence of the threshold",
+              "default": 0.15,
+              "title": "Near Miss Margin"
+            },
+            "description": "Draw amber NEAR MISS boxes within this confidence of the threshold"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "MP4 with boxes + rule names",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "video/mp4": {}
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/safety/annotate/upload": {
+      "post": {
+        "tags": [
+          "safety_agent"
+        ],
+        "summary": "Annotated safety video from an upload",
+        "description": "Upload a video; get it back with person boxes and the rule name on every violation / near miss.",
+        "operationId": "annotate_safety_from_upload",
+        "parameters": [
+          {
+            "name": "near_miss_margin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "default": 0.15,
+              "title": "Near Miss Margin"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "MP4 with boxes + rule names",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "video/mp4": {}
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lss/status": {
+      "get": {
+        "tags": [
+          "lss_agent"
+        ],
+        "summary": "Gemba Kaizen Agent status",
+        "operationId": "get_lss_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LssStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lss/suggest": {
+      "post": {
+        "tags": [
+          "lss_agent"
+        ],
+        "summary": "Gemba Kaizen suggestions from a Safety Agent result",
+        "description": "Send the `safety` result of `/safety/detect*` (plus `person_count`, optional) and the station context.\nThe Gemba Kaizen Engine computes VA / NVA time and ROI; the LLM (OpenRouter) writes Gemba Kaizen cards citing\nknowledge cards and video timestamps. Without `OPENROUTER_API_KEY` the cards are rule-based.",
+        "operationId": "suggest_lss",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LssRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LssResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analysis/analyze": {
+      "post": {
+        "tags": [
+          "analysis_pipeline"
+        ],
+        "summary": "Safety Agent -> Gemba Kaizen Agent on a video from a URL",
+        "description": "Full pipeline: safety rules + activity timeline (VLM), people count (YOLO), then Gemba Kaizen cards.",
+        "operationId": "analyze_pipeline_from_url",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisRequest"
+              },
+              "examples": {
+                "default_rules": {
+                  "summary": "Built-in safety rules, rule-based Gemba Kaizen without LLM",
+                  "value": {
+                    "video_url": "https://example.com/video.mp4",
+                    "use_llm": false
+                  }
+                },
+                "custom": {
+                  "summary": "Custom rules + station context, Gemba Kaizen in Thai",
+                  "value": {
+                    "video_url": "https://example.com/video.mp4",
+                    "rules": [
+                      {
+                        "id": "no_helmet",
+                        "prompt": "a person who is not wearing a safety helmet",
+                        "severity": "high"
+                      },
+                      {
+                        "prompt": "a person running",
+                        "severity": "medium"
+                      }
+                    ],
+                    "station_name": "Assembly cell 3",
+                    "process_description": "Fasten 4 screws and inspect",
+                    "cycle_time_s": 21.4,
+                    "language": "th"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analysis/analyze/upload": {
+      "post": {
+        "tags": [
+          "analysis_pipeline"
+        ],
+        "summary": "Safety Agent -> Gemba Kaizen Agent on an uploaded video",
+        "description": "Upload a workstation video: safety rules + activity timeline (VLM), people count (YOLO), then Gemba Kaizen cards.\nTry it from the browser at [/demo](/demo).",
+        "operationId": "analyze_pipeline_from_upload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Inference failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/voice/status": {
+      "get": {
+        "tags": [
+          "voice_agent"
+        ],
+        "summary": "Voice Agent status",
+        "operationId": "voice_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/voice/chat": {
+      "post": {
+        "tags": [
+          "voice_agent"
+        ],
+        "summary": "Answer a question about the analysis",
+        "description": "RAG over the analysis you send and the Gemba Kaizen knowledge cards; the answer is plain text meant to be read aloud.",
+        "operationId": "voice_chat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceChatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/voice/speak": {
+      "post": {
+        "tags": [
+          "voice_agent"
+        ],
+        "summary": "Text to speech (ElevenLabs, cached in the voice database)",
+        "operationId": "voice_speak",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceSpeakRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "MP3 audio",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "audio/mpeg": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/voice/transcribe": {
+      "post": {
+        "tags": [
+          "voice_agent"
+        ],
+        "summary": "Speech to text (ElevenLabs Scribe)",
+        "operationId": "voice_transcribe",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_voice_transcribe"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceTranscript"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video/preview": {
+      "post": {
+        "tags": [
+          "video_preview"
+        ],
+        "summary": "H.264 MP4 preview of an uploaded video",
+        "description": "For videos the browser cannot play (HEVC, MPEG-4 part 2, AVI, MKV ...). Analysis does not need this: it reads the\noriginal. Frame timing is kept, so analysis timestamps match the preview. Needs `ffmpeg` on the server.",
+        "operationId": "video_preview",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_video_preview"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "H.264 MP4, at most 1280 px wide, no audio",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "video/mp4": {}
+            }
+          },
+          "400": {
+            "description": "Not a video, bad or YouTube URL, or download failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Video is larger than MAX_VIDEO_MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters, or the video cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The model is not available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActionStats": {
+        "properties": {
+          "total_frames": {
+            "type": "integer",
+            "title": "Total Frames",
+            "description": "Number of sampled (analyzed) frames"
+          },
+          "total_detections": {
+            "type": "integer",
+            "title": "Total Detections",
+            "description": "Same as total_frames"
+          },
+          "passed_detections": {
+            "type": "integer",
+            "title": "Passed Detections"
+          },
+          "success_rate": {
+            "type": "number",
+            "title": "Success Rate",
+            "description": "passed_detections / total_detections * 100"
+          },
+          "segments_found": {
+            "type": "integer",
+            "title": "Segments Found"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_frames",
+          "total_detections",
+          "passed_detections",
+          "success_rate",
+          "segments_found"
+        ],
+        "title": "ActionStats"
+      },
+      "ActivityFrame": {
+        "properties": {
+          "timestamp": {
+            "type": "number",
+            "title": "Timestamp"
+          },
+          "frame_idx": {
+            "type": "integer",
+            "title": "Frame Idx"
+          },
+          "activity": {
+            "type": "string",
+            "title": "Activity"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "rule_confidences": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Rule Confidences",
+            "description": "P(Yes) per rule id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "frame_idx",
+          "activity",
+          "category",
+          "confidence",
+          "rule_confidences"
+        ],
+        "title": "ActivityFrame"
+      },
+      "ActivityResult": {
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/ActivitySummary"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/ActivitySegmentOut"
+            },
+            "type": "array",
+            "title": "Segments"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityFrame"
+            },
+            "type": "array",
+            "title": "Timeline",
+            "description": "One entry per analyzed frame"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "segments"
+        ],
+        "title": "ActivityResult"
+      },
+      "ActivitySegmentOut": {
+        "properties": {
+          "start_time": {
+            "type": "number",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "number",
+            "title": "End Time"
+          },
+          "duration": {
+            "type": "number",
+            "title": "Duration"
+          },
+          "activity": {
+            "type": "string",
+            "title": "Activity",
+            "examples": [
+              "working",
+              "walking",
+              "reaching",
+              "carrying",
+              "searching",
+              "waiting",
+              "inspecting",
+              "no_person",
+              "uncertain"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "examples": [
+              "VA",
+              "NNVA",
+              "NVA_MOTION",
+              "NVA_TRANSPORT",
+              "NVA_WAITING",
+              "NVA_SEARCH",
+              "NO_PERSON",
+              "UNCERTAIN"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "frame_count": {
+            "type": "integer",
+            "title": "Frame Count"
+          },
+          "key_frame_idx": {
+            "type": "integer",
+            "title": "Key Frame Idx"
+          },
+          "key_timestamp": {
+            "type": "number",
+            "title": "Key Timestamp"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_time",
+          "end_time",
+          "duration",
+          "activity",
+          "category",
+          "confidence",
+          "frame_count",
+          "key_frame_idx",
+          "key_timestamp"
+        ],
+        "title": "ActivitySegmentOut",
+        "description": "Consecutive frames with the same activity"
+      },
+      "ActivitySummary": {
+        "properties": {
+          "observed_seconds": {
+            "type": "number",
+            "title": "Observed Seconds"
+          },
+          "person_visible_seconds": {
+            "type": "number",
+            "title": "Person Visible Seconds"
+          },
+          "by_activity_seconds": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "By Activity Seconds"
+          },
+          "by_category_seconds": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "By Category Seconds"
+          },
+          "va_percent": {
+            "type": "number",
+            "title": "Va Percent",
+            "description": "Percent of the time a person is visible"
+          },
+          "nnva_percent": {
+            "type": "number",
+            "title": "Nnva Percent"
+          },
+          "nva_percent": {
+            "type": "number",
+            "title": "Nva Percent"
+          },
+          "uncertain_percent": {
+            "type": "number",
+            "title": "Uncertain Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "observed_seconds",
+          "person_visible_seconds",
+          "by_activity_seconds",
+          "by_category_seconds",
+          "va_percent",
+          "nnva_percent",
+          "nva_percent",
+          "uncertain_percent"
+        ],
+        "title": "ActivitySummary"
+      },
+      "AnalysisRequest": {
+        "properties": {
+          "station_name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Station Name",
+            "default": "",
+            "examples": [
+              "Assembly cell 3"
+            ]
+          },
+          "process_description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Process Description",
+            "description": "What the station does / the SOP in short",
+            "default": "",
+            "examples": [
+              "Fasten 4 screws on the motor housing and inspect"
+            ]
+          },
+          "takt_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Takt Time S",
+            "description": "Takt time in seconds, if known"
+          },
+          "cycle_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycle Time S",
+            "description": "Typical cycle time in seconds, if known"
+          },
+          "cycles_per_shift": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycles Per Shift",
+            "description": "Default: shift_hours * 3600 / cycle_time_s"
+          },
+          "shift_hours": {
+            "type": "number",
+            "maximum": 24.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Shift Hours",
+            "default": 8.0
+          },
+          "operators": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Operators",
+            "description": "Operators doing this work (scales hours saved)",
+            "default": 1
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "th",
+              "ja"
+            ],
+            "title": "Language",
+            "description": "Language of the Gemba Kaizen suggestions",
+            "default": "en"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Notes",
+            "description": "Anything else the Gemba Kaizen Agent should know",
+            "default": ""
+          },
+          "person_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Confidence",
+            "description": "YOLO detection confidence threshold",
+            "default": 0.5
+          },
+          "person_sample_fps": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Person Sample Fps",
+            "description": "Frames per second of video counted by YOLO",
+            "default": 2.0
+          },
+          "sample_fps": {
+            "type": "number",
+            "maximum": 5.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Sample Fps",
+            "description": "Frames analyzed per second of video",
+            "default": 1.0
+          },
+          "max_frames": {
+            "type": "integer",
+            "maximum": 1200.0,
+            "minimum": 1.0,
+            "title": "Max Frames",
+            "description": "Longer videos are sampled more sparsely so at most this many frames are analyzed",
+            "default": 240
+          },
+          "segment_gap": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Segment Gap",
+            "description": "Seconds; violations closer than this form one event",
+            "default": 2.0
+          },
+          "activity_min_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Activity Min Confidence",
+            "description": "Below this the frame's activity is UNCERTAIN",
+            "default": 0.4
+          },
+          "max_descriptions": {
+            "type": "integer",
+            "maximum": 40.0,
+            "minimum": 0.0,
+            "title": "Max Descriptions",
+            "description": "Key frames described in one sentence by the VLM",
+            "default": 12
+          },
+          "include_snapshots": {
+            "type": "boolean",
+            "title": "Include Snapshots",
+            "description": "Attach a small JPEG (data URI) of each key frame",
+            "default": true
+          },
+          "count_people": {
+            "type": "boolean",
+            "title": "Count People",
+            "description": "Also count people with YOLO, in parallel",
+            "default": true
+          },
+          "video_url": {
+            "type": "string",
+            "title": "Video Url",
+            "description": "Direct http(s) URL of a video file (not YouTube)",
+            "examples": [
+              "https://example.com/video.mp4"
+            ]
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SafetyRuleModel"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules",
+            "description": "Default: built-in rules (helmet, running, phone, person down)"
+          },
+          "use_llm": {
+            "type": "boolean",
+            "title": "Use Llm",
+            "description": "false = rule-based Gemba Kaizen cards only",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_url"
+        ],
+        "title": "AnalysisRequest",
+        "description": "Full pipeline on a video at a direct URL"
+      },
+      "AnalysisResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "video_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Path"
+          },
+          "safety": {
+            "$ref": "#/components/schemas/SafetyAgentResult"
+          },
+          "person_count": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonCountResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "person_count_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person Count Error"
+          },
+          "lss": {
+            "$ref": "#/components/schemas/LssResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "safety",
+          "lss"
+        ],
+        "title": "AnalysisResponse",
+        "description": "Full pipeline result: Safety Agent -> Gemba Kaizen Agent"
+      },
+      "AnalysisUpload": {
+        "properties": {
+          "station_name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Station Name",
+            "default": "",
+            "examples": [
+              "Assembly cell 3"
+            ]
+          },
+          "process_description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Process Description",
+            "description": "What the station does / the SOP in short",
+            "default": "",
+            "examples": [
+              "Fasten 4 screws on the motor housing and inspect"
+            ]
+          },
+          "takt_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Takt Time S",
+            "description": "Takt time in seconds, if known"
+          },
+          "cycle_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycle Time S",
+            "description": "Typical cycle time in seconds, if known"
+          },
+          "cycles_per_shift": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycles Per Shift",
+            "description": "Default: shift_hours * 3600 / cycle_time_s"
+          },
+          "shift_hours": {
+            "type": "number",
+            "maximum": 24.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Shift Hours",
+            "default": 8.0
+          },
+          "operators": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Operators",
+            "description": "Operators doing this work (scales hours saved)",
+            "default": 1
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "th",
+              "ja"
+            ],
+            "title": "Language",
+            "description": "Language of the Gemba Kaizen suggestions",
+            "default": "en"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Notes",
+            "description": "Anything else the Gemba Kaizen Agent should know",
+            "default": ""
+          },
+          "person_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Confidence",
+            "description": "YOLO detection confidence threshold",
+            "default": 0.5
+          },
+          "person_sample_fps": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Person Sample Fps",
+            "description": "Frames per second of video counted by YOLO",
+            "default": 2.0
+          },
+          "sample_fps": {
+            "type": "number",
+            "maximum": 5.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Sample Fps",
+            "description": "Frames analyzed per second of video",
+            "default": 1.0
+          },
+          "max_frames": {
+            "type": "integer",
+            "maximum": 1200.0,
+            "minimum": 1.0,
+            "title": "Max Frames",
+            "description": "Longer videos are sampled more sparsely so at most this many frames are analyzed",
+            "default": 240
+          },
+          "segment_gap": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Segment Gap",
+            "description": "Seconds; violations closer than this form one event",
+            "default": 2.0
+          },
+          "activity_min_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Activity Min Confidence",
+            "description": "Below this the frame's activity is UNCERTAIN",
+            "default": 0.4
+          },
+          "max_descriptions": {
+            "type": "integer",
+            "maximum": 40.0,
+            "minimum": 0.0,
+            "title": "Max Descriptions",
+            "description": "Key frames described in one sentence by the VLM",
+            "default": 12
+          },
+          "include_snapshots": {
+            "type": "boolean",
+            "title": "Include Snapshots",
+            "description": "Attach a small JPEG (data URI) of each key frame",
+            "default": true
+          },
+          "count_people": {
+            "type": "boolean",
+            "title": "Count People",
+            "description": "Also count people with YOLO, in parallel",
+            "default": true
+          },
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "Video file (mp4, avi, mov, mkv, webm, flv, wmv)"
+          },
+          "rules": {
+            "type": "string",
+            "title": "Rules",
+            "description": "One rule per line, optional severity prefix (`high: not wearing a helmet`), or a JSON list of rule objects. Empty = built-in rules.",
+            "default": "",
+            "examples": [
+              "high: a person who is not wearing a safety helmet\nmedium: a person running"
+            ]
+          },
+          "use_llm": {
+            "type": "boolean",
+            "title": "Use Llm",
+            "description": "false = rule-based Gemba Kaizen cards only",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "AnalysisUpload",
+        "description": "Full pipeline on an uploaded video (multipart form)"
+      },
+      "Body_video_preview": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_video_preview"
+      },
+      "Body_voice_transcribe": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_voice_transcribe"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "examples": [
+              "File must be a video"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse"
+      },
+      "FramePersonCount": {
+        "properties": {
+          "frame_idx": {
+            "type": "integer",
+            "title": "Frame Idx",
+            "description": "Index in the original video's frames"
+          },
+          "timestamp": {
+            "type": "number",
+            "title": "Timestamp",
+            "description": "Seconds from the start of the video"
+          },
+          "person_count": {
+            "type": "integer",
+            "title": "Person Count"
+          },
+          "detections": {
+            "items": {
+              "$ref": "#/components/schemas/PersonBox"
+            },
+            "type": "array",
+            "title": "Detections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "frame_idx",
+          "timestamp",
+          "person_count",
+          "detections"
+        ],
+        "title": "FramePersonCount",
+        "description": "Person count for one sampled frame"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded"
+            ],
+            "title": "Status",
+            "description": "degraded until a video detector is usable: the VLM (OPENROUTER_API_KEY set) or BLIP (loaded)"
+          },
+          "video_action_available": {
+            "type": "boolean",
+            "title": "Video Action Available"
+          },
+          "detector_loaded": {
+            "type": "boolean",
+            "title": "Detector Loaded"
+          },
+          "vlm_action_available": {
+            "type": "boolean",
+            "title": "Vlm Action Available"
+          },
+          "vlm_detector_loaded": {
+            "type": "boolean",
+            "title": "Vlm Detector Loaded"
+          },
+          "person_count_available": {
+            "type": "boolean",
+            "title": "Person Count Available"
+          },
+          "counter_loaded": {
+            "type": "boolean",
+            "title": "Counter Loaded"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "video_action_available",
+          "detector_loaded",
+          "vlm_action_available",
+          "vlm_detector_loaded",
+          "person_count_available",
+          "counter_loaded",
+          "message"
+        ],
+        "title": "HealthResponse"
+      },
+      "KnowledgeCardRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "source"
+        ],
+        "title": "KnowledgeCardRef"
+      },
+      "LssCardOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "examples": [
+              "K01"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Priority"
+          },
+          "observation": {
+            "type": "string",
+            "title": "Observation"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/LssEvidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "root_cause": {
+            "type": "string",
+            "title": "Root Cause"
+          },
+          "recommendation": {
+            "type": "string",
+            "title": "Recommendation"
+          },
+          "kb_card_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Kb Card Ids",
+            "description": "Knowledge cards the suggestion is based on"
+          },
+          "est_seconds_saved_per_cycle": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Seconds Saved Per Cycle"
+          },
+          "waste_share_removed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waste Share Removed",
+            "description": "Estimated share (0-1) of the category's waste removed"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "roi": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LssROI"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Computed by the Gemba Kaizen Engine, not the LLM"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "category",
+          "priority",
+          "observation",
+          "evidence",
+          "root_cause",
+          "recommendation",
+          "kb_card_ids",
+          "confidence"
+        ],
+        "title": "LssCardOut"
+      },
+      "LssEvidence": {
+        "properties": {
+          "start_time": {
+            "type": "number",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "number",
+            "title": "End Time"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_time",
+          "end_time",
+          "note"
+        ],
+        "title": "LssEvidence"
+      },
+      "LssMetrics": {
+        "properties": {
+          "video_duration": {
+            "type": "number",
+            "title": "Video Duration"
+          },
+          "observed_seconds": {
+            "type": "number",
+            "title": "Observed Seconds"
+          },
+          "person_visible_seconds": {
+            "type": "number",
+            "title": "Person Visible Seconds"
+          },
+          "va_percent": {
+            "type": "number",
+            "title": "Va Percent"
+          },
+          "nnva_percent": {
+            "type": "number",
+            "title": "Nnva Percent"
+          },
+          "nva_percent": {
+            "type": "number",
+            "title": "Nva Percent"
+          },
+          "uncertain_percent": {
+            "type": "number",
+            "title": "Uncertain Percent"
+          },
+          "waste_by_category": {
+            "items": {
+              "$ref": "#/components/schemas/WasteMetric"
+            },
+            "type": "array",
+            "title": "Waste By Category"
+          },
+          "longest_waste_segments": {
+            "items": {
+              "$ref": "#/components/schemas/WasteSegmentMetric"
+            },
+            "type": "array",
+            "title": "Longest Waste Segments"
+          },
+          "projected_nva_hours_per_shift": {
+            "type": "number",
+            "title": "Projected Nva Hours Per Shift"
+          },
+          "safety": {
+            "$ref": "#/components/schemas/SafetyMetrics"
+          },
+          "cycles_per_shift": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycles Per Shift"
+          },
+          "people": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PeopleMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_duration",
+          "observed_seconds",
+          "person_visible_seconds",
+          "va_percent",
+          "nnva_percent",
+          "nva_percent",
+          "uncertain_percent",
+          "waste_by_category",
+          "longest_waste_segments",
+          "projected_nva_hours_per_shift",
+          "safety"
+        ],
+        "title": "LssMetrics"
+      },
+      "LssROI": {
+        "properties": {
+          "hours_saved_per_shift": {
+            "type": "number",
+            "title": "Hours Saved Per Shift"
+          },
+          "throughput_gain_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Throughput Gain Percent"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis",
+            "description": "How the number was computed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hours_saved_per_shift",
+          "basis"
+        ],
+        "title": "LssROI"
+      },
+      "LssRequest": {
+        "properties": {
+          "safety": {
+            "$ref": "#/components/schemas/SafetyAgentResult"
+          },
+          "person_count": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonCountResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "context": {
+            "$ref": "#/components/schemas/StationFields"
+          },
+          "use_llm": {
+            "type": "boolean",
+            "title": "Use Llm",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "safety"
+        ],
+        "title": "LssRequest",
+        "description": "Send a Safety Agent result (and optional person count) to the Gemba Kaizen Agent"
+      },
+      "LssResult": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "examples": [
+              "lss_20261015_165833_644730"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "rules"
+            ],
+            "title": "Source",
+            "description": "rules = no LLM key, use_llm=false, or the LLM call failed"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "OpenRouter model id when source=llm"
+          },
+          "llm_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Error"
+          },
+          "context": {
+            "$ref": "#/components/schemas/StationFields"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/LssMetrics"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "lss_cards": {
+            "items": {
+              "$ref": "#/components/schemas/LssCardOut"
+            },
+            "type": "array",
+            "title": "Gemba Kaizen Cards"
+          },
+          "safety_actions": {
+            "items": {
+              "$ref": "#/components/schemas/SafetyAction"
+            },
+            "type": "array",
+            "title": "Safety Actions"
+          },
+          "operator_questions": {
+            "items": {
+              "$ref": "#/components/schemas/OperatorQuestion"
+            },
+            "type": "array",
+            "title": "Operator Questions"
+          },
+          "knowledge_cards_used": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeCardRef"
+            },
+            "type": "array",
+            "title": "Knowledge Cards Used"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage",
+            "description": "LLM token usage reported by OpenRouter"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "timestamp",
+          "source",
+          "context",
+          "metrics",
+          "summary",
+          "lss_cards",
+          "safety_actions",
+          "operator_questions",
+          "knowledge_cards_used"
+        ],
+        "title": "LssResult",
+        "description": "Gemba Kaizen Agent output"
+      },
+      "LssStatus": {
+        "properties": {
+          "pipeline_available": {
+            "type": "boolean",
+            "title": "Pipeline Available"
+          },
+          "llm_configured": {
+            "type": "boolean",
+            "title": "Llm Configured",
+            "description": "OPENROUTER_API_KEY is set"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "knowledge_cards": {
+            "type": "integer",
+            "title": "Knowledge Cards"
+          },
+          "default_rules": {
+            "items": {
+              "$ref": "#/components/schemas/SafetyRuleOut"
+            },
+            "type": "array",
+            "title": "Default Rules"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pipeline_available",
+          "llm_configured",
+          "knowledge_cards",
+          "default_rules"
+        ],
+        "title": "LssStatus"
+      },
+      "OperatorQuestion": {
+        "properties": {
+          "timestamp": {
+            "type": "number",
+            "title": "Timestamp",
+            "description": "Seconds into the video"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "question"
+        ],
+        "title": "OperatorQuestion"
+      },
+      "PeopleMetrics": {
+        "properties": {
+          "max_persons": {
+            "type": "integer",
+            "title": "Max Persons"
+          },
+          "avg_persons": {
+            "type": "number",
+            "title": "Avg Persons"
+          },
+          "frames_with_people": {
+            "type": "integer",
+            "title": "Frames With People"
+          },
+          "frames_analyzed": {
+            "type": "integer",
+            "title": "Frames Analyzed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "max_persons",
+          "avg_persons",
+          "frames_with_people",
+          "frames_analyzed"
+        ],
+        "title": "PeopleMetrics"
+      },
+      "PersonBox": {
+        "properties": {
+          "person_id": {
+            "type": "integer",
+            "title": "Person Id",
+            "description": "Index within this frame; not a tracked identity"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "x1": {
+            "type": "integer",
+            "title": "X1"
+          },
+          "y1": {
+            "type": "integer",
+            "title": "Y1"
+          },
+          "x2": {
+            "type": "integer",
+            "title": "X2"
+          },
+          "y2": {
+            "type": "integer",
+            "title": "Y2"
+          },
+          "center_x": {
+            "type": "integer",
+            "title": "Center X"
+          },
+          "center_y": {
+            "type": "integer",
+            "title": "Center Y"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_id",
+          "confidence",
+          "x1",
+          "y1",
+          "x2",
+          "y2",
+          "center_x",
+          "center_y"
+        ],
+        "title": "PersonBox",
+        "description": "One detected person, in pixel coordinates of the original frame"
+      },
+      "PersonCountRequest": {
+        "properties": {
+          "person_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Confidence",
+            "description": "YOLO detection confidence threshold",
+            "default": 0.5
+          },
+          "person_sample_fps": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Person Sample Fps",
+            "description": "Frames per second of video counted by YOLO",
+            "default": 2.0
+          },
+          "video_url": {
+            "type": "string",
+            "title": "Video Url",
+            "description": "Direct http(s) URL of a video file (not YouTube)",
+            "examples": [
+              "https://example.com/video.mp4"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_url"
+        ],
+        "title": "PersonCountRequest",
+        "description": "Person counting on a video at a direct URL"
+      },
+      "PersonCountResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "examples": [
+              "yolo_20261015_165833_644600"
+            ]
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "YOLO weights used",
+            "examples": [
+              "yolov8n.pt"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Server time when processing finished (ISO 8601)"
+          },
+          "video_duration": {
+            "type": "number",
+            "title": "Video Duration",
+            "description": "Seconds"
+          },
+          "statistics": {
+            "$ref": "#/components/schemas/PersonCountStatistics"
+          },
+          "timeline": {
+            "$ref": "#/components/schemas/PersonCountTimeline"
+          },
+          "frame_counts": {
+            "items": {
+              "$ref": "#/components/schemas/FramePersonCount"
+            },
+            "type": "array",
+            "title": "Frame Counts",
+            "description": "One entry per sampled frame"
+          },
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "video_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Path",
+            "description": "The video URL or uploaded filename"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "model",
+          "timestamp",
+          "video_duration",
+          "statistics",
+          "timeline",
+          "frame_counts",
+          "success"
+        ],
+        "title": "PersonCountResponse",
+        "description": "Standalone person counting result"
+      },
+      "PersonCountResult": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "examples": [
+              "yolo_20261015_165833_644600"
+            ]
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "YOLO weights used",
+            "examples": [
+              "yolov8n.pt"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Server time when processing finished (ISO 8601)"
+          },
+          "video_duration": {
+            "type": "number",
+            "title": "Video Duration",
+            "description": "Seconds"
+          },
+          "statistics": {
+            "$ref": "#/components/schemas/PersonCountStatistics"
+          },
+          "timeline": {
+            "$ref": "#/components/schemas/PersonCountTimeline"
+          },
+          "frame_counts": {
+            "items": {
+              "$ref": "#/components/schemas/FramePersonCount"
+            },
+            "type": "array",
+            "title": "Frame Counts",
+            "description": "One entry per sampled frame"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "model",
+          "timestamp",
+          "video_duration",
+          "statistics",
+          "timeline",
+          "frame_counts"
+        ],
+        "title": "PersonCountResult",
+        "description": "YOLO person counting result"
+      },
+      "PersonCountStatistics": {
+        "properties": {
+          "frames_analyzed": {
+            "type": "integer",
+            "title": "Frames Analyzed",
+            "description": "Number of sampled frames"
+          },
+          "frames_with_people": {
+            "type": "integer",
+            "title": "Frames With People"
+          },
+          "max_persons": {
+            "type": "integer",
+            "title": "Max Persons",
+            "description": "Most people visible in a single frame"
+          },
+          "min_persons": {
+            "type": "integer",
+            "title": "Min Persons"
+          },
+          "avg_persons": {
+            "type": "number",
+            "title": "Avg Persons"
+          },
+          "peak_timestamp": {
+            "type": "number",
+            "title": "Peak Timestamp",
+            "description": "Seconds; first frame with max_persons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "frames_analyzed",
+          "frames_with_people",
+          "max_persons",
+          "min_persons",
+          "avg_persons",
+          "peak_timestamp"
+        ],
+        "title": "PersonCountStatistics"
+      },
+      "PersonCountStatus": {
+        "properties": {
+          "person_count_available": {
+            "type": "boolean",
+            "title": "Person Count Available"
+          },
+          "counter_loaded": {
+            "type": "boolean",
+            "title": "Counter Loaded"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device",
+            "description": "cuda or cpu; null until loaded"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "supported_formats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported Formats"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_count_available",
+          "counter_loaded",
+          "model",
+          "supported_formats"
+        ],
+        "title": "PersonCountStatus"
+      },
+      "PersonCountTimeline": {
+        "properties": {
+          "timestamps": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Timestamps"
+          },
+          "counts": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamps",
+          "counts"
+        ],
+        "title": "PersonCountTimeline",
+        "description": "Parallel arrays for charting the count over time"
+      },
+      "PersonCountUpload": {
+        "properties": {
+          "person_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Confidence",
+            "description": "YOLO detection confidence threshold",
+            "default": 0.5
+          },
+          "person_sample_fps": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Person Sample Fps",
+            "description": "Frames per second of video counted by YOLO",
+            "default": 2.0
+          },
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "Video file (mp4, avi, mov, mkv, webm, flv, wmv)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "PersonCountUpload",
+        "description": "Person counting on an uploaded video (multipart form)"
+      },
+      "RootResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "docs": {
+            "type": "string",
+            "title": "Docs"
+          },
+          "openapi": {
+            "type": "string",
+            "title": "Openapi"
+          },
+          "endpoints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Endpoints"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "docs",
+          "openapi",
+          "endpoints"
+        ],
+        "title": "RootResponse"
+      },
+      "SafetyAction": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "kb_card_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Kb Card Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "severity",
+          "action",
+          "kb_card_ids"
+        ],
+        "title": "SafetyAction"
+      },
+      "SafetyAgentResult": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "examples": [
+              "safety_20261015_165833_644730"
+            ]
+          },
+          "video_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Path"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "default": ""
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "default": ""
+          },
+          "video_duration": {
+            "type": "number",
+            "title": "Video Duration"
+          },
+          "sample_fps": {
+            "type": "number",
+            "title": "Sample Fps",
+            "description": "Effective sampling rate (lower than requested for long videos)"
+          },
+          "vlm_usage": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vlm Usage",
+            "description": "Cloud backend only: requests, tokens and cost (USD, as reported by OpenRouter) of this run"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/SafetyRuleOut"
+            },
+            "type": "array",
+            "title": "Rules"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/SafetyStats"
+          },
+          "safety_events": {
+            "items": {
+              "$ref": "#/components/schemas/SafetyEventOut"
+            },
+            "type": "array",
+            "title": "Safety Events"
+          },
+          "activity": {
+            "$ref": "#/components/schemas/ActivityResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "video_duration",
+          "sample_fps",
+          "rules",
+          "stats",
+          "safety_events",
+          "activity"
+        ],
+        "title": "SafetyAgentResult",
+        "description": "Safety Agent output; also the input of /lss/suggest"
+      },
+      "SafetyEventOut": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity"
+          },
+          "start_time": {
+            "type": "number",
+            "title": "Start Time",
+            "description": "Seconds"
+          },
+          "end_time": {
+            "type": "number",
+            "title": "End Time",
+            "description": "Seconds (end of the last flagged frame)"
+          },
+          "duration": {
+            "type": "number",
+            "title": "Duration"
+          },
+          "peak_confidence": {
+            "type": "number",
+            "title": "Peak Confidence"
+          },
+          "mean_confidence": {
+            "type": "number",
+            "title": "Mean Confidence"
+          },
+          "frame_count": {
+            "type": "integer",
+            "title": "Frame Count"
+          },
+          "key_frame_idx": {
+            "type": "integer",
+            "title": "Key Frame Idx",
+            "description": "Frame with the highest confidence"
+          },
+          "key_timestamp": {
+            "type": "number",
+            "title": "Key Timestamp"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "VLM description of the key frame (empty past max_descriptions)",
+            "default": ""
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot",
+            "description": "JPEG data URI of the key frame"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "prompt",
+          "severity",
+          "start_time",
+          "end_time",
+          "duration",
+          "peak_confidence",
+          "mean_confidence",
+          "frame_count",
+          "key_frame_idx",
+          "key_timestamp"
+        ],
+        "title": "SafetyEventOut",
+        "description": "Consecutive frames where one rule was violated"
+      },
+      "SafetyMetrics": {
+        "properties": {
+          "events": {
+            "type": "integer",
+            "title": "Events"
+          },
+          "by_severity": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Severity"
+          },
+          "by_rule": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Rule"
+          },
+          "violation_seconds": {
+            "type": "number",
+            "title": "Violation Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "events",
+          "by_severity",
+          "by_rule",
+          "violation_seconds"
+        ],
+        "title": "SafetyMetrics"
+      },
+      "SafetyRequest": {
+        "properties": {
+          "person_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Confidence",
+            "description": "YOLO detection confidence threshold",
+            "default": 0.5
+          },
+          "person_sample_fps": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Person Sample Fps",
+            "description": "Frames per second of video counted by YOLO",
+            "default": 2.0
+          },
+          "sample_fps": {
+            "type": "number",
+            "maximum": 5.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Sample Fps",
+            "description": "Frames analyzed per second of video",
+            "default": 1.0
+          },
+          "max_frames": {
+            "type": "integer",
+            "maximum": 1200.0,
+            "minimum": 1.0,
+            "title": "Max Frames",
+            "description": "Longer videos are sampled more sparsely so at most this many frames are analyzed",
+            "default": 240
+          },
+          "segment_gap": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Segment Gap",
+            "description": "Seconds; violations closer than this form one event",
+            "default": 2.0
+          },
+          "activity_min_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Activity Min Confidence",
+            "description": "Below this the frame's activity is UNCERTAIN",
+            "default": 0.4
+          },
+          "max_descriptions": {
+            "type": "integer",
+            "maximum": 40.0,
+            "minimum": 0.0,
+            "title": "Max Descriptions",
+            "description": "Key frames described in one sentence by the VLM",
+            "default": 12
+          },
+          "include_snapshots": {
+            "type": "boolean",
+            "title": "Include Snapshots",
+            "description": "Attach a small JPEG (data URI) of each key frame",
+            "default": true
+          },
+          "count_people": {
+            "type": "boolean",
+            "title": "Count People",
+            "description": "Also count people with YOLO, in parallel",
+            "default": true
+          },
+          "video_url": {
+            "type": "string",
+            "title": "Video Url",
+            "description": "Direct http(s) URL of a video file (not YouTube)",
+            "examples": [
+              "https://example.com/video.mp4"
+            ]
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SafetyRuleModel"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules",
+            "description": "Default: built-in rules (helmet, running, phone, person down)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_url"
+        ],
+        "title": "SafetyRequest",
+        "description": "Safety Agent on a video at a direct URL"
+      },
+      "SafetyResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "examples": [
+              "safety_20261015_165833_644730"
+            ]
+          },
+          "video_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Path"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "default": ""
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "default": ""
+          },
+          "video_duration": {
+            "type": "number",
+            "title": "Video Duration"
+          },
+          "sample_fps": {
+            "type": "number",
+            "title": "Sample Fps",
+            "description": "Effective sampling rate (lower than requested for long videos)"
+          },
+          "vlm_usage": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vlm Usage",
+            "description": "Cloud backend only: requests, tokens and cost (USD, as reported by OpenRouter) of this run"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/SafetyRuleOut"
+            },
+            "type": "array",
+            "title": "Rules"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/SafetyStats"
+          },
+          "safety_events": {
+            "items": {
+              "$ref": "#/components/schemas/SafetyEventOut"
+            },
+            "type": "array",
+            "title": "Safety Events"
+          },
+          "activity": {
+            "$ref": "#/components/schemas/ActivityResult"
+          },
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "person_count": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonCountResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "person_count_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person Count Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "video_duration",
+          "sample_fps",
+          "rules",
+          "stats",
+          "safety_events",
+          "activity",
+          "success"
+        ],
+        "title": "SafetyResponse"
+      },
+      "SafetyRuleModel": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "Short id; generated from the prompt when empty",
+            "examples": [
+              "no_helmet"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Prompt",
+            "examples": [
+              "a person who is not wearing a safety helmet"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity",
+            "default": "medium"
+          },
+          "threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Threshold",
+            "description": "Minimum P(Yes) for a frame to count as a violation",
+            "default": 0.6
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "SafetyRuleModel",
+        "description": "One safety rule: the VLM is asked \"is <prompt> happening?\" per frame"
+      },
+      "SafetyRuleOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "prompt",
+          "severity",
+          "threshold"
+        ],
+        "title": "SafetyRuleOut"
+      },
+      "SafetyStats": {
+        "properties": {
+          "frames_analyzed": {
+            "type": "integer",
+            "title": "Frames Analyzed"
+          },
+          "safety_events": {
+            "type": "integer",
+            "title": "Safety Events"
+          },
+          "frames_with_violation": {
+            "type": "integer",
+            "title": "Frames With Violation"
+          },
+          "events_by_severity": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Events By Severity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "frames_analyzed",
+          "safety_events",
+          "frames_with_violation",
+          "events_by_severity"
+        ],
+        "title": "SafetyStats"
+      },
+      "SafetyUpload": {
+        "properties": {
+          "person_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Confidence",
+            "description": "YOLO detection confidence threshold",
+            "default": 0.5
+          },
+          "person_sample_fps": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Person Sample Fps",
+            "description": "Frames per second of video counted by YOLO",
+            "default": 2.0
+          },
+          "sample_fps": {
+            "type": "number",
+            "maximum": 5.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Sample Fps",
+            "description": "Frames analyzed per second of video",
+            "default": 1.0
+          },
+          "max_frames": {
+            "type": "integer",
+            "maximum": 1200.0,
+            "minimum": 1.0,
+            "title": "Max Frames",
+            "description": "Longer videos are sampled more sparsely so at most this many frames are analyzed",
+            "default": 240
+          },
+          "segment_gap": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Segment Gap",
+            "description": "Seconds; violations closer than this form one event",
+            "default": 2.0
+          },
+          "activity_min_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Activity Min Confidence",
+            "description": "Below this the frame's activity is UNCERTAIN",
+            "default": 0.4
+          },
+          "max_descriptions": {
+            "type": "integer",
+            "maximum": 40.0,
+            "minimum": 0.0,
+            "title": "Max Descriptions",
+            "description": "Key frames described in one sentence by the VLM",
+            "default": 12
+          },
+          "include_snapshots": {
+            "type": "boolean",
+            "title": "Include Snapshots",
+            "description": "Attach a small JPEG (data URI) of each key frame",
+            "default": true
+          },
+          "count_people": {
+            "type": "boolean",
+            "title": "Count People",
+            "description": "Also count people with YOLO, in parallel",
+            "default": true
+          },
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "Video file (mp4, avi, mov, mkv, webm, flv, wmv)"
+          },
+          "rules": {
+            "type": "string",
+            "title": "Rules",
+            "description": "One rule per line, optional severity prefix (`high: not wearing a helmet`), or a JSON list of rule objects. Empty = built-in rules.",
+            "default": "",
+            "examples": [
+              "high: a person who is not wearing a safety helmet\nmedium: a person running"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "SafetyUpload",
+        "description": "Safety Agent on an uploaded video (multipart form)"
+      },
+      "SimilarityScores": {
+        "properties": {
+          "person": {
+            "type": "number",
+            "title": "Person"
+          },
+          "action": {
+            "type": "number",
+            "title": "Action"
+          },
+          "context": {
+            "type": "number",
+            "title": "Context"
+          },
+          "weighted": {
+            "type": "number",
+            "title": "Weighted",
+            "description": "Weighted sum using the normalized person/action/context weights"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person",
+          "action",
+          "context",
+          "weighted"
+        ],
+        "title": "SimilarityScores",
+        "description": "Cosine similarity between prompt and caption components (0 when a side has no words for it)"
+      },
+      "StationFields": {
+        "properties": {
+          "station_name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Station Name",
+            "default": "",
+            "examples": [
+              "Assembly cell 3"
+            ]
+          },
+          "process_description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Process Description",
+            "description": "What the station does / the SOP in short",
+            "default": "",
+            "examples": [
+              "Fasten 4 screws on the motor housing and inspect"
+            ]
+          },
+          "takt_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Takt Time S",
+            "description": "Takt time in seconds, if known"
+          },
+          "cycle_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycle Time S",
+            "description": "Typical cycle time in seconds, if known"
+          },
+          "cycles_per_shift": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycles Per Shift",
+            "description": "Default: shift_hours * 3600 / cycle_time_s"
+          },
+          "shift_hours": {
+            "type": "number",
+            "maximum": 24.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Shift Hours",
+            "default": 8.0
+          },
+          "operators": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Operators",
+            "description": "Operators doing this work (scales hours saved)",
+            "default": 1
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "th",
+              "ja"
+            ],
+            "title": "Language",
+            "description": "Language of the Gemba Kaizen suggestions",
+            "default": "en"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Notes",
+            "description": "Anything else the Gemba Kaizen Agent should know",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "StationFields"
+      },
+      "TimelineSegment": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "start_time": {
+            "type": "number",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "number",
+            "title": "End Time"
+          },
+          "duration": {
+            "type": "number",
+            "title": "Duration",
+            "description": "end_time - start_time"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "action_label": {
+            "type": "string",
+            "title": "Action Label"
+          },
+          "frame_count": {
+            "type": "integer",
+            "title": "Frame Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "start_time",
+          "end_time",
+          "duration",
+          "confidence",
+          "action_label",
+          "frame_count"
+        ],
+        "title": "TimelineSegment"
+      },
+      "TimelineVisualization": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "action_verb": {
+            "type": "string",
+            "title": "Action Verb"
+          },
+          "video_duration": {
+            "type": "number",
+            "title": "Video Duration"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineSegment"
+            },
+            "type": "array",
+            "title": "Segments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "prompt",
+          "action_verb",
+          "video_duration",
+          "segments"
+        ],
+        "title": "TimelineVisualization",
+        "description": "Compact segment list for drawing a timeline"
+      },
+      "VLMActionDetection": {
+        "properties": {
+          "timestamp": {
+            "type": "number",
+            "title": "Timestamp",
+            "description": "Seconds from the start of the video"
+          },
+          "frame_idx": {
+            "type": "integer",
+            "title": "Frame Idx",
+            "description": "Index in the original video's frames"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "description": "Probability of Yes (0-1), from the confidence the model reports"
+          },
+          "answer": {
+            "type": "string",
+            "enum": [
+              "Yes",
+              "No"
+            ],
+            "title": "Answer",
+            "description": "The VLM's answer"
+          },
+          "vlm_description": {
+            "type": "string",
+            "title": "Vlm Description",
+            "description": "One-sentence description of the frame; empty when describe=false",
+            "examples": [
+              "A worker is welding a metal frame without a helmet."
+            ]
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed",
+            "description": "confidence >= confidence_threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "frame_idx",
+          "confidence",
+          "answer",
+          "vlm_description",
+          "passed"
+        ],
+        "title": "VLMActionDetection",
+        "description": "One sampled frame judged by the VLM"
+      },
+      "VLMActionRequest": {
+        "properties": {
+          "person_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Confidence",
+            "description": "YOLO detection confidence threshold",
+            "default": 0.5
+          },
+          "person_sample_fps": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Person Sample Fps",
+            "description": "Frames per second of video counted by YOLO",
+            "default": 2.0
+          },
+          "confidence_threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence Threshold",
+            "description": "Minimum P(Yes) for a frame to pass",
+            "default": 0.5
+          },
+          "sample_fps": {
+            "type": "number",
+            "maximum": 10.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Sample Fps",
+            "description": "Frames sampled per second of video",
+            "default": 1.0
+          },
+          "segment_gap": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Segment Gap",
+            "description": "Max gap (seconds) between frames in one segment",
+            "default": 3.0
+          },
+          "describe": {
+            "type": "boolean",
+            "title": "Describe",
+            "description": "Also ask the VLM for a one-sentence description of each frame (slower; false scores Yes/No only)",
+            "default": true
+          },
+          "return_timeline": {
+            "type": "boolean",
+            "title": "Return Timeline",
+            "description": "Whether to return timeline visualization data",
+            "default": true
+          },
+          "count_people": {
+            "type": "boolean",
+            "title": "Count People",
+            "description": "Also count people with YOLO, in parallel with action detection",
+            "default": true
+          },
+          "video_url": {
+            "type": "string",
+            "title": "Video Url",
+            "description": "Direct http(s) URL of a video file (not YouTube)",
+            "examples": [
+              "https://example.com/video.mp4"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Prompt",
+            "description": "Action or situation to find",
+            "examples": [
+              "worker not wearing a helmet"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_url",
+          "prompt"
+        ],
+        "title": "VLMActionRequest",
+        "description": "VLM action detection on a video at a direct URL"
+      },
+      "VLMActionResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "examples": [
+              "vlm_20261015_165833_644730"
+            ]
+          },
+          "video_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Path",
+            "description": "The video URL or uploaded filename"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "VLM used",
+            "examples": [
+              "qwen/qwen3.7-flash"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Server time when processing finished (ISO 8601)"
+          },
+          "video_duration": {
+            "type": "number",
+            "title": "Video Duration",
+            "description": "Seconds"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/VLMActionStats"
+          },
+          "passed_detections": {
+            "items": {
+              "$ref": "#/components/schemas/VLMActionDetection"
+            },
+            "type": "array",
+            "title": "Passed Detections",
+            "description": "Frames that passed confidence_threshold"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/VLMActionSegment"
+            },
+            "type": "array",
+            "title": "Segments"
+          },
+          "timeline_visualization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimelineVisualization"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when return_timeline=false or no segments were found; action_verb is the prompt"
+          },
+          "person_count": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonCountResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when count_people=false or counting failed"
+          },
+          "person_count_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person Count Error",
+            "description": "Why person_count is null, if counting was requested"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "job_id",
+          "prompt",
+          "model",
+          "timestamp",
+          "video_duration",
+          "stats",
+          "passed_detections",
+          "segments"
+        ],
+        "title": "VLMActionResponse",
+        "description": "VLM action detection result, with the parallel person count"
+      },
+      "VLMActionSegment": {
+        "properties": {
+          "start_time": {
+            "type": "number",
+            "title": "Start Time",
+            "description": "Seconds; timestamp of the first passed frame"
+          },
+          "end_time": {
+            "type": "number",
+            "title": "End Time",
+            "description": "Seconds; timestamp of the last passed frame"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "description": "Mean confidence of the segment's detections"
+          },
+          "frame_count": {
+            "type": "integer",
+            "title": "Frame Count"
+          },
+          "action_label": {
+            "type": "string",
+            "title": "Action Label",
+            "description": "Same as prompt"
+          },
+          "detections": {
+            "items": {
+              "$ref": "#/components/schemas/VLMActionDetection"
+            },
+            "type": "array",
+            "title": "Detections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_time",
+          "end_time",
+          "confidence",
+          "frame_count",
+          "action_label",
+          "detections"
+        ],
+        "title": "VLMActionSegment",
+        "description": "Passed frames grouped in time (a gap > segment_gap seconds starts a new segment)"
+      },
+      "VLMActionStats": {
+        "properties": {
+          "total_frames": {
+            "type": "integer",
+            "title": "Total Frames",
+            "description": "Number of sampled (analyzed) frames"
+          },
+          "passed_detections": {
+            "type": "integer",
+            "title": "Passed Detections"
+          },
+          "success_rate": {
+            "type": "number",
+            "title": "Success Rate",
+            "description": "passed_detections / total_frames * 100"
+          },
+          "segments_found": {
+            "type": "integer",
+            "title": "Segments Found"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_frames",
+          "passed_detections",
+          "success_rate",
+          "segments_found"
+        ],
+        "title": "VLMActionStats"
+      },
+      "VLMActionStatus": {
+        "properties": {
+          "vlm_action_available": {
+            "type": "boolean",
+            "title": "Vlm Action Available"
+          },
+          "detector_loaded": {
+            "type": "boolean",
+            "title": "Detector Loaded"
+          },
+          "api_key_configured": {
+            "type": "boolean",
+            "title": "Api Key Configured",
+            "description": "OPENROUTER_API_KEY is set"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "OpenRouter model id (VLM_MODEL)"
+          },
+          "batch_size": {
+            "type": "integer",
+            "title": "Batch Size",
+            "description": "Parallel VLM requests (VLM_CONCURRENCY)"
+          },
+          "max_image_side": {
+            "type": "integer",
+            "title": "Max Image Side",
+            "description": "Frames are downscaled to this longest side before the VLM"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "supported_formats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported Formats"
+          },
+          "parallel_person_count": {
+            "type": "boolean",
+            "title": "Parallel Person Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vlm_action_available",
+          "detector_loaded",
+          "api_key_configured",
+          "batch_size",
+          "max_image_side",
+          "supported_formats",
+          "parallel_person_count"
+        ],
+        "title": "VLMActionStatus"
+      },
+      "VLMActionUpload": {
+        "properties": {
+          "person_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Confidence",
+            "description": "YOLO detection confidence threshold",
+            "default": 0.5
+          },
+          "person_sample_fps": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Person Sample Fps",
+            "description": "Frames per second of video counted by YOLO",
+            "default": 2.0
+          },
+          "confidence_threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence Threshold",
+            "description": "Minimum P(Yes) for a frame to pass",
+            "default": 0.5
+          },
+          "sample_fps": {
+            "type": "number",
+            "maximum": 10.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Sample Fps",
+            "description": "Frames sampled per second of video",
+            "default": 1.0
+          },
+          "segment_gap": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Segment Gap",
+            "description": "Max gap (seconds) between frames in one segment",
+            "default": 3.0
+          },
+          "describe": {
+            "type": "boolean",
+            "title": "Describe",
+            "description": "Also ask the VLM for a one-sentence description of each frame (slower; false scores Yes/No only)",
+            "default": true
+          },
+          "return_timeline": {
+            "type": "boolean",
+            "title": "Return Timeline",
+            "description": "Whether to return timeline visualization data",
+            "default": true
+          },
+          "count_people": {
+            "type": "boolean",
+            "title": "Count People",
+            "description": "Also count people with YOLO, in parallel with action detection",
+            "default": true
+          },
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "Video file (mp4, avi, mov, mkv, webm, flv, wmv)"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Prompt",
+            "description": "Action or situation to find",
+            "examples": [
+              "worker not wearing a helmet"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "prompt"
+        ],
+        "title": "VLMActionUpload",
+        "description": "VLM action detection on an uploaded video (multipart form)"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValidationErrorItem": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Loc"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Msg"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationErrorItem"
+      },
+      "ValidationErrorResponse": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationErrorItem"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Detail",
+            "description": "A list for invalid parameters; a string when the video cannot be read or all weights are 0"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ValidationErrorResponse"
+      },
+      "VideoActionDetection": {
+        "properties": {
+          "timestamp": {
+            "type": "number",
+            "title": "Timestamp",
+            "description": "Seconds from the start of the video"
+          },
+          "frame_idx": {
+            "type": "integer",
+            "title": "Frame Idx",
+            "description": "Index in the original video's frames"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "description": "Equal to similarity_scores.weighted"
+          },
+          "blip_description": {
+            "type": "string",
+            "title": "Blip Description",
+            "description": "BLIP caption of the frame",
+            "examples": [
+              "a man running down a street"
+            ]
+          },
+          "similarity_scores": {
+            "$ref": "#/components/schemas/SimilarityScores"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed",
+            "description": "weighted >= similarity_threshold and action >= action_threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "frame_idx",
+          "confidence",
+          "blip_description",
+          "similarity_scores",
+          "passed"
+        ],
+        "title": "VideoActionDetection",
+        "description": "One sampled frame scored against the prompt"
+      },
+      "VideoActionFeatures": {
+        "properties": {
+          "action_detection": {
+            "type": "boolean",
+            "title": "Action Detection"
+          },
+          "timeline_visualization": {
+            "type": "boolean",
+            "title": "Timeline Visualization"
+          },
+          "custom_weights": {
+            "type": "boolean",
+            "title": "Custom Weights"
+          },
+          "batched_inference": {
+            "type": "boolean",
+            "title": "Batched Inference"
+          },
+          "parallel_person_count": {
+            "type": "boolean",
+            "title": "Parallel Person Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_detection",
+          "timeline_visualization",
+          "custom_weights",
+          "batched_inference",
+          "parallel_person_count"
+        ],
+        "title": "VideoActionFeatures"
+      },
+      "VideoActionModelInfo": {
+        "properties": {
+          "blip_model": {
+            "type": "string",
+            "title": "Blip Model"
+          },
+          "similarity_model": {
+            "type": "string",
+            "title": "Similarity Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "blip_model",
+          "similarity_model"
+        ],
+        "title": "VideoActionModelInfo"
+      },
+      "VideoActionRequest": {
+        "properties": {
+          "person_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Confidence",
+            "description": "YOLO detection confidence threshold",
+            "default": 0.5
+          },
+          "person_sample_fps": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Person Sample Fps",
+            "description": "Frames per second of video counted by YOLO",
+            "default": 2.0
+          },
+          "person_weight": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Weight",
+            "description": "Weight for person detection component",
+            "default": 0.2
+          },
+          "action_weight": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Action Weight",
+            "description": "Weight for action detection component",
+            "default": 0.7
+          },
+          "context_weight": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Context Weight",
+            "description": "Weight for context detection component",
+            "default": 0.1
+          },
+          "similarity_threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Similarity Threshold",
+            "description": "Overall similarity threshold",
+            "default": 0.5
+          },
+          "action_threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Action Threshold",
+            "description": "Action-specific threshold",
+            "default": 0.4
+          },
+          "sample_fps": {
+            "type": "number",
+            "maximum": 10.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Sample Fps",
+            "description": "Frames sampled per second of video",
+            "default": 1.0
+          },
+          "segment_gap": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Segment Gap",
+            "description": "Max gap (seconds) between frames in one segment",
+            "default": 3.0
+          },
+          "return_timeline": {
+            "type": "boolean",
+            "title": "Return Timeline",
+            "description": "Whether to return timeline visualization data",
+            "default": true
+          },
+          "count_people": {
+            "type": "boolean",
+            "title": "Count People",
+            "description": "Also count people with YOLO, in parallel with action detection",
+            "default": true
+          },
+          "video_url": {
+            "type": "string",
+            "title": "Video Url",
+            "description": "Direct http(s) URL of a video file (not YouTube)",
+            "examples": [
+              "https://example.com/video.mp4"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt",
+            "description": "Action to find",
+            "examples": [
+              "person running"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_url",
+          "prompt"
+        ],
+        "title": "VideoActionRequest",
+        "description": "Action detection on a video at a direct URL"
+      },
+      "VideoActionResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "examples": [
+              "job_20261015_165833_644730"
+            ]
+          },
+          "video_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Path",
+            "description": "The video URL or uploaded filename"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "action_verb": {
+            "type": "string",
+            "title": "Action Verb",
+            "description": "Main verb extracted from the prompt",
+            "examples": [
+              "run"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Server time when processing finished (ISO 8601)"
+          },
+          "video_duration": {
+            "type": "number",
+            "title": "Video Duration",
+            "description": "Seconds"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/ActionStats"
+          },
+          "passed_detections": {
+            "items": {
+              "$ref": "#/components/schemas/VideoActionDetection"
+            },
+            "type": "array",
+            "title": "Passed Detections",
+            "description": "Frames that passed both thresholds"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/VideoActionSegment"
+            },
+            "type": "array",
+            "title": "Segments"
+          },
+          "timeline_visualization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimelineVisualization"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when return_timeline=false or no segments were found"
+          },
+          "person_count": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonCountResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when count_people=false or counting failed"
+          },
+          "person_count_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person Count Error",
+            "description": "Why person_count is null, if counting was requested"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "job_id",
+          "prompt",
+          "action_verb",
+          "timestamp",
+          "video_duration",
+          "stats",
+          "passed_detections",
+          "segments"
+        ],
+        "title": "VideoActionResponse",
+        "description": "Action detection result, with the parallel person count"
+      },
+      "VideoActionSegment": {
+        "properties": {
+          "start_time": {
+            "type": "number",
+            "title": "Start Time",
+            "description": "Seconds; timestamp of the first passed frame"
+          },
+          "end_time": {
+            "type": "number",
+            "title": "End Time",
+            "description": "Seconds; timestamp of the last passed frame"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "description": "Mean confidence of the segment's detections"
+          },
+          "frame_count": {
+            "type": "integer",
+            "title": "Frame Count"
+          },
+          "action_label": {
+            "type": "string",
+            "title": "Action Label",
+            "description": "Same as action_verb"
+          },
+          "detections": {
+            "items": {
+              "$ref": "#/components/schemas/VideoActionDetection"
+            },
+            "type": "array",
+            "title": "Detections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_time",
+          "end_time",
+          "confidence",
+          "frame_count",
+          "action_label",
+          "detections"
+        ],
+        "title": "VideoActionSegment",
+        "description": "Passed frames grouped in time (a gap > segment_gap seconds starts a new segment)"
+      },
+      "VideoActionStatus": {
+        "properties": {
+          "video_action_available": {
+            "type": "boolean",
+            "title": "Video Action Available"
+          },
+          "detector_loaded": {
+            "type": "boolean",
+            "title": "Detector Loaded"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device",
+            "description": "cuda, mps or cpu; null until loaded"
+          },
+          "spacy_loaded": {
+            "type": "boolean",
+            "title": "Spacy Loaded"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "supported_formats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported Formats"
+          },
+          "features": {
+            "$ref": "#/components/schemas/VideoActionFeatures"
+          },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoActionModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_action_available",
+          "detector_loaded",
+          "spacy_loaded",
+          "supported_formats",
+          "features"
+        ],
+        "title": "VideoActionStatus"
+      },
+      "VideoActionUpload": {
+        "properties": {
+          "person_confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Confidence",
+            "description": "YOLO detection confidence threshold",
+            "default": 0.5
+          },
+          "person_sample_fps": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Person Sample Fps",
+            "description": "Frames per second of video counted by YOLO",
+            "default": 2.0
+          },
+          "person_weight": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Person Weight",
+            "description": "Weight for person detection component",
+            "default": 0.2
+          },
+          "action_weight": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Action Weight",
+            "description": "Weight for action detection component",
+            "default": 0.7
+          },
+          "context_weight": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Context Weight",
+            "description": "Weight for context detection component",
+            "default": 0.1
+          },
+          "similarity_threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Similarity Threshold",
+            "description": "Overall similarity threshold",
+            "default": 0.5
+          },
+          "action_threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Action Threshold",
+            "description": "Action-specific threshold",
+            "default": 0.4
+          },
+          "sample_fps": {
+            "type": "number",
+            "maximum": 10.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Sample Fps",
+            "description": "Frames sampled per second of video",
+            "default": 1.0
+          },
+          "segment_gap": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Segment Gap",
+            "description": "Max gap (seconds) between frames in one segment",
+            "default": 3.0
+          },
+          "return_timeline": {
+            "type": "boolean",
+            "title": "Return Timeline",
+            "description": "Whether to return timeline visualization data",
+            "default": true
+          },
+          "count_people": {
+            "type": "boolean",
+            "title": "Count People",
+            "description": "Also count people with YOLO, in parallel with action detection",
+            "default": true
+          },
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "Video file (mp4, avi, mov, mkv, webm, flv, wmv)"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt",
+            "description": "Action to find",
+            "examples": [
+              "person running"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "prompt"
+        ],
+        "title": "VideoActionUpload",
+        "description": "Action detection on an uploaded video (multipart form)"
+      },
+      "VoiceChatRequest": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message",
+            "description": "The user's question"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/VoiceMessage"
+            },
+            "type": "array",
+            "title": "History",
+            "description": "Earlier turns, oldest first"
+          },
+          "analysis": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Analysis",
+            "description": "The /analysis/analyze response the dashboard holds (snapshots can be left out)"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "description": "Reply language: en, th or ja",
+            "default": "en"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "VoiceChatRequest"
+      },
+      "VoiceChatResponse": {
+        "properties": {
+          "reply": {
+            "type": "string",
+            "title": "Reply"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/VoiceSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "llm, or retrieval when no OpenRouter key is set"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reply",
+          "sources",
+          "source"
+        ],
+        "title": "VoiceChatResponse"
+      },
+      "VoiceMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "pattern": "^(user|assistant)$",
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "VoiceMessage"
+      },
+      "VoiceSource": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "analysis or knowledge"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "source"
+        ],
+        "title": "VoiceSource"
+      },
+      "VoiceSpeakRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "voice_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Id",
+            "description": "Defaults to ELEVENLABS_VOICE_ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "VoiceSpeakRequest"
+      },
+      "VoiceStatus": {
+        "properties": {
+          "elevenlabs_configured": {
+            "type": "boolean",
+            "title": "Elevenlabs Configured"
+          },
+          "llm_configured": {
+            "type": "boolean",
+            "title": "Llm Configured"
+          },
+          "llm_model": {
+            "type": "string",
+            "title": "Llm Model"
+          },
+          "tts_model": {
+            "type": "string",
+            "title": "Tts Model"
+          },
+          "stt_model": {
+            "type": "string",
+            "title": "Stt Model"
+          },
+          "voice_id": {
+            "type": "string",
+            "title": "Voice Id"
+          },
+          "audio_cache": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Audio Cache"
+          }
+        },
+        "type": "object",
+        "required": [
+          "elevenlabs_configured",
+          "llm_configured",
+          "llm_model",
+          "tts_model",
+          "stt_model",
+          "voice_id",
+          "audio_cache"
+        ],
+        "title": "VoiceStatus"
+      },
+      "VoiceTranscript": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "VoiceTranscript"
+      },
+      "WasteMetric": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds"
+          },
+          "percent_of_person_time": {
+            "type": "number",
+            "title": "Percent Of Person Time"
+          },
+          "projected_hours_per_shift": {
+            "type": "number",
+            "title": "Projected Hours Per Shift"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "label",
+          "seconds",
+          "percent_of_person_time",
+          "projected_hours_per_shift"
+        ],
+        "title": "WasteMetric"
+      },
+      "WasteSegmentMetric": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "title": "Start",
+            "description": "MM:SS"
+          },
+          "start_time": {
+            "type": "number",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "number",
+            "title": "End Time"
+          },
+          "duration": {
+            "type": "number",
+            "title": "Duration"
+          },
+          "activity": {
+            "type": "string",
+            "title": "Activity"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "start_time",
+          "end_time",
+          "duration",
+          "activity",
+          "category"
+        ],
+        "title": "WasteSegmentMetric"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "video_action",
+      "description": "Action detection with BLIP + MiniLM, plus parallel YOLO person counting"
+    },
+    {
+      "name": "vlm_action",
+      "description": "Action detection with an OpenRouter vision model, plus parallel YOLO person counting"
+    },
+    {
+      "name": "person_count",
+      "description": "Person counting with YOLO only"
+    },
+    {
+      "name": "safety_agent",
+      "description": "Safety rules + activity (Muda) timeline with an OpenRouter vision model"
+    },
+    {
+      "name": "lss_agent",
+      "description": "Gemba Kaizen suggestions from Safety Agent results (LLM via OpenRouter + knowledge cards)"
+    },
+    {
+      "name": "analysis_pipeline",
+      "description": "Safety Agent -> Gemba Kaizen Agent in one call"
+    },
+    {
+      "name": "video_preview",
+      "description": "H.264 MP4 preview of an uploaded video, for browsers that cannot play the original"
+    },
+    {
+      "name": "voice_agent",
+      "description": "Chat over the analysis (RAG + OpenRouter LLM) with ElevenLabs speech in and out"
+    },
+    {
+      "name": "health",
+      "description": "Service and model status"
+    }
+  ]
+}

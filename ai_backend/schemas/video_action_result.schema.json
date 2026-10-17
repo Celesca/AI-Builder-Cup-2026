@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "video_action_result.schema.json",
+  "title": "VideoActionResult",
+  "description": "Return value of ActionDetector.process_video() in video_action_model.py. The API (server.py) renames 'passed_detections_only' to 'passed_detections' and 'timeline_data' to 'timeline_visualization', replaces 'video_path' with the URL or uploaded filename, and adds 'success', 'error', 'person_count' (see person_count_result.schema.json, null when count_people=false or counting failed) and 'person_count_error'.",
+  "type": "object",
+  "required": [
+    "job_id",
+    "video_path",
+    "prompt",
+    "action_verb",
+    "timestamp",
+    "video_duration",
+    "stats",
+    "passed_detections_only",
+    "segments"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "pattern": "^job_\\d{8}_\\d{6}_\\d{6}$",
+      "description": "job_YYYYMMDD_HHMMSS_microseconds",
+      "examples": ["job_20261015_162130_123456"]
+    },
+    "video_path": {
+      "type": "string",
+      "description": "Local path of the processed video file"
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Prompt as given, e.g. 'person running'"
+    },
+    "action_verb": {
+      "type": "string",
+      "description": "Main verb extracted from the prompt (spaCy lemma, or an '-ing' word in fallback mode); 'action' if none found",
+      "examples": ["run", "running", "action"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server local time when processing finished (ISO 8601, no timezone)"
+    },
+    "video_duration": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Seconds; from container metadata, or the last sampled timestamp if metadata is missing"
+    },
+    "stats": { "$ref": "#/$defs/Stats" },
+    "passed_detections_only": {
+      "type": "array",
+      "description": "Every sampled frame that passed both thresholds, in time order",
+      "items": { "$ref": "#/$defs/Detection" }
+    },
+    "segments": {
+      "type": "array",
+      "description": "Passed detections grouped into segments (a gap > segment_gap seconds starts a new one)",
+      "items": { "$ref": "#/$defs/ActionSegment" }
+    },
+    "timeline_data": {
+      "description": "Present only when include_timeline=True; null when no segments were found",
+      "oneOf": [
+        { "$ref": "#/$defs/TimelineData" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "$defs": {
+    "Stats": {
+      "type": "object",
+      "required": ["total_frames", "total_detections", "passed_detections", "success_rate", "segments_found"],
+      "additionalProperties": false,
+      "properties": {
+        "total_frames": { "type": "integer", "minimum": 1, "description": "Number of sampled (analyzed) frames, not the video's frame count" },
+        "total_detections": { "type": "integer", "minimum": 1, "description": "Same as total_frames (one detection per sampled frame)" },
+        "passed_detections": { "type": "integer", "minimum": 0 },
+        "success_rate": { "type": "number", "minimum": 0, "maximum": 100, "description": "passed_detections / total_detections * 100" },
+        "segments_found": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "SimilarityScores": {
+      "type": "object",
+      "description": "Cosine similarities between prompt and caption components (0 when either side has no words for that component). Roughly -1..1 (can exceed by float rounding).",
+      "required": ["person", "action", "context", "weighted"],
+      "additionalProperties": false,
+      "properties": {
+        "person": { "type": "number" },
+        "action": { "type": "number" },
+        "context": { "type": "number" },
+        "weighted": { "type": "number", "description": "Weighted sum using the normalized person/action/context weights" }
+      }
+    },
+    "Detection": {
+      "type": "object",
+      "required": ["timestamp", "frame_idx", "confidence", "blip_description", "similarity_scores", "passed"],
+      "additionalProperties": false,
+      "properties": {
+        "timestamp": { "type": "number", "minimum": 0, "description": "Seconds from the start of the video" },
+        "frame_idx": { "type": "integer", "minimum": 0, "description": "Index in the original video's frames" },
+        "confidence": { "type": "number", "description": "Equal to similarity_scores.weighted" },
+        "blip_description": { "type": "string", "description": "BLIP caption of the frame" },
+        "similarity_scores": { "$ref": "#/$defs/SimilarityScores" },
+        "passed": { "type": "boolean", "description": "weighted >= similarity_threshold and action >= action_threshold" }
+      }
+    },
+    "ActionSegment": {
+      "type": "object",
+      "required": ["start_time", "end_time", "confidence", "frame_count", "action_label", "detections"],
+      "additionalProperties": false,
+      "properties": {
+        "start_time": { "type": "number", "minimum": 0, "description": "Timestamp of the first passed frame (seconds)" },
+        "end_time": { "type": "number", "minimum": 0, "description": "Timestamp of the last passed frame (seconds); equals start_time for a single-frame segment" },
+        "confidence": { "type": "number", "description": "Mean confidence of the segment's detections" },
+        "frame_count": { "type": "integer", "minimum": 1 },
+        "action_label": { "type": "string", "description": "Same as the top-level action_verb" },
+        "detections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Detection" }
+        }
+      }
+    },
+    "TimelineSegment": {
+      "type": "object",
+      "required": ["index", "start_time", "end_time", "duration", "confidence", "action_label", "frame_count"],
+      "additionalProperties": false,
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "start_time": { "type": "number", "minimum": 0 },
+        "end_time": { "type": "number", "minimum": 0 },
+        "duration": { "type": "number", "minimum": 0, "description": "end_time - start_time" },
+        "confidence": { "type": "number" },
+        "action_label": { "type": "string" },
+        "frame_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "TimelineData": {
+      "type": "object",
+      "required": ["job_id", "prompt", "action_verb", "video_duration", "segments"],
+      "additionalProperties": false,
+      "properties": {
+        "job_id": { "type": "string" },
+        "prompt": { "type": "string" },
+        "action_verb": { "type": "string" },
+        "video_duration": { "type": "number", "minimum": 0 },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/TimelineSegment" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "clips": [
+    {
+      "id": "xsens-004-ws10-in-l",
+      "title": "WS10 car door assembly (in camera, L view)",
+      "video": "/demo/xsens-004-ws10-in-l.mp4",
+      "analysis": "/demo/xsens-004-ws10-in-l.analysis.json",
+      "duration": 50,
+      "synthetic": false,
+      "note": "CarDA (CC BY 4.0), xsens_004_WS10_2023_10_03, 50 s crop. Analysed 2026-10-16 with qwen/qwen3.7-flash"
+    },
+    {
+      "id": "cell3-synthetic",
+      "title": "Assembly cell 3 (synthetic sample)",
+      "video": "/demo/cell3-synthetic.mp4",
+      "analysis": "/demo/cell3-synthetic.analysis.json",
+      "duration": 72,
+      "synthetic": true,
+      "note": "Scripted animation with cached results. Add your own clips with `pnpm demo:add`."
+    }
+  ]
+}

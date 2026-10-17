@@ -1,0 +1,53 @@
+services:
+  api:
+    build:
+      context: .
+      # For an NVIDIA GPU, uncomment the args below and the `deploy` block
+      # args:
+      #   TORCH_INDEX_URL: https://download.pytorch.org/whl/cu124
+    image: video-action-api
+    # Do NOT expose 8000 to the host directly; nginx will proxy it
+    expose:
+      - "8000"
+    environment:
+      # Nothing is preloaded: the VLM and the Gemba Kaizen agent run on OpenRouter, YOLO loads on first use (6 MB).
+      # Avoid /video_action on a 4 GB VM: it loads BLIP (~2 GB). Set PRELOAD_MODEL "1" only on a bigger machine.
+      PRELOAD_MODEL: "0"
+      VLM_MODEL: "${VLM_MODEL:-qwen/qwen3.7-flash}"
+      VLM_CONCURRENCY: "4"
+      # OPENROUTER_API_KEY is required for the VLM; without it the Gemba Kaizen cards are rule-based.
+      # Put OPENROUTER_API_KEY=... in a .env file next to this file (never commit it).
+      # Used by the Safety Agent's vision model and by the Gemba Kaizen agent.
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      LSS_LLM_MODEL: "${LSS_LLM_MODEL:-google/gemini-3.1-flash-lite}"
+      # Voice Agent: ElevenLabs speech, cached in the voice-data volume
+      ELEVENLABS_API_KEY: "${ELEVENLABS_API_KEY:-}"
+      ELEVENLABS_VOICE_ID: "${ELEVENLABS_VOICE_ID:-21m00Tcm4TlvDq8ikWAM}"
+      ELEVENLABS_TTS_MODEL: "${ELEVENLABS_TTS_MODEL:-eleven_flash_v2_5}"
+      # Uncomment to restrict CORS to your domain only:
+      # ALLOWED_ORIGINS: "http://gemba.limitlesstech-co.com,http://157.254.192.65"
+    volumes:
+      - hf-cache:/app/.cache/huggingface
+      - voice-data:/app/data
+    restart: unless-stopped
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  hf-cache:
+  voice-data:

@@ -1,0 +1,28 @@
+# Adds HTTPS to the backend stack: Caddy replaces nginx on ports 80 and 443.
+#
+#   DOMAIN=gemba.limitlesstech-co.com docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
+#
+# Then set AI_BACKEND_URL=https://gemba.limitlesstech-co.com on the frontend (Vercel) and redeploy it.
+services:
+  nginx:
+    profiles: ["off"] # not started: Caddy takes ports 80 and 443
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: "${DOMAIN:?set DOMAIN, for example gemba.limitlesstech-co.com}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # the certificate: keep it between restarts
+      - caddy-config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  caddy-config:

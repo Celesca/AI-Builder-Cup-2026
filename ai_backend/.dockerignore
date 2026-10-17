@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+.pytest_cache/
+tests/
+*.pyc
+*.pt
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+.dockerignore
+.env

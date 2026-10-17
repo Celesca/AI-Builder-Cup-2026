@@ -1,0 +1,34 @@
+[
+	{
+		"id": "lifting",
+		"label": "Lifting posture",
+		"prompt": "a person lifting or carrying a load with a bent back instead of bent knees",
+		"severity": "medium",
+		"threshold": 0.6,
+		"enabled": true
+	},
+	{
+		"id": "bending",
+		"label": "Deep bend or twist",
+		"prompt": "a person bending deeply forward at the waist or twisting their trunk while reaching into a car door",
+		"severity": "medium",
+		"threshold": 0.6,
+		"enabled": true
+	},
+	{
+		"id": "overhead",
+		"label": "Overhead reach",
+		"prompt": "a person working with one or both hands raised above shoulder height",
+		"severity": "medium",
+		"threshold": 0.6,
+		"enabled": true
+	},
+	{
+		"id": "awkward_posture",
+		"label": "Awkward arm or wrist posture",
+		"prompt": "a person holding an awkward or strained arm or wrist posture while fitting a part or using a tool",
+		"severity": "low",
+		"threshold": 0.6,
+		"enabled": true
+	}
+]

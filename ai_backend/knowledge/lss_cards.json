@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "description": "Countermeasure cards for the Gemba Kaizen Agent. Each card is an original summary (not quoted text) of a well-known lean / industrial engineering / safety practice, with the source it comes from. Retrieved by category and tags, and cited by id in Gemba Kaizen suggestions.",
+  "cards": [
+    {
+      "id": "KC-MOT-01",
+      "category": "NVA_MOTION",
+      "tags": ["reach", "reaching", "bending", "layout", "bin"],
+      "title": "Bring parts and tools into the normal working area",
+      "symptom": "Operator repeatedly reaches far, stretches or bends to get parts or tools.",
+      "countermeasure": "Move frequently used parts and tools within forearm reach in front of the operator; place them in the order of use and at elbow height; use gravity-feed bins that present parts close to the point of use.",
+      "principle": "Principles of motion economy (arrangement of the workplace): fixed, close and sequenced locations for tools and materials.",
+      "typical_impact": "Removes 0.5-2 s per reach; also lowers shoulder and back strain.",
+      "source": "R. M. Barnes, Motion and Time Study: Design and Measurement of Work (principles of motion economy)"
+    },
+    {
+      "id": "KC-MOT-02",
+      "category": "NVA_MOTION",
+      "tags": ["walking", "walk", "layout", "cell"],
+      "title": "Shorten walking with a compact cell layout",
+      "symptom": "Operator walks between stations, shelves or machines within each cycle.",
+      "countermeasure": "Rearrange the station into a compact U-shaped or straight cell so that the work sequence follows the flow; bring supplies to the line side instead of the operator going to them.",
+      "principle": "Motion is one of the seven wastes; ECRS - Rearrange.",
+      "typical_impact": "Each avoided step saves about 0.6-0.8 s.",
+      "source": "T. Ohno, Toyota Production System: Beyond Large-Scale Production (seven wastes); ECRS method of work simplification"
+    },
+    {
+      "id": "KC-MOT-03",
+      "category": "NVA_MOTION",
+      "tags": ["both hands", "hand", "two-handed", "fixture"],
+      "title": "Use both hands and fixtures instead of holding",
+      "symptom": "One hand only holds the part while the other works, or the part is repositioned many times.",
+      "countermeasure": "Add a jig or fixture to hold the part so both hands can work simultaneously and symmetrically; pre-position tools (balancers, holders) so they are picked up already oriented.",
+      "principle": "Principles of motion economy (use of the human body; design of tools and equipment).",
+      "typical_impact": "Often 10-30% shorter manual cycle for hand-assembly elements.",
+      "source": "R. M. Barnes, Motion and Time Study (principles of motion economy)"
+    },
+    {
+      "id": "KC-TRN-01",
+      "category": "NVA_TRANSPORT",
+      "tags": [
+        "carrying",
+        "carry",
+        "transport",
+        "material handling",
+        "conveyor"
+      ],
+      "title": "Replace manual carrying with flow racks or a water spider",
+      "symptom": "Operator leaves the station to carry materials, finished parts or bins.",
+      "countermeasure": "Deliver materials to the point of use with flow racks, chutes or roller conveyors; assign a material handler (mizusumashi / water spider) on a fixed route so that operators stay at value-adding work.",
+      "principle": "Transportation is one of the seven wastes; separate operator work from material handling.",
+      "typical_impact": "Removes all carrying time from the operator cycle; stabilizes cycle time.",
+      "source": "T. Ohno, Toyota Production System (seven wastes); J. Liker, The Toyota Way (flow, standardized material delivery)"
+    },
+    {
+      "id": "KC-TRN-02",
+      "category": "NVA_TRANSPORT",
+      "tags": ["batch", "carry", "distance", "wip"],
+      "title": "Reduce transfer batch size and distance",
+      "symptom": "Large batches are moved between processes, with long carrying trips.",
+      "countermeasure": "Place connected processes next to each other and move smaller batches (ideally one piece) more often; mark fixed WIP locations with floor lines.",
+      "principle": "One-piece flow; Inventory and Transportation wastes.",
+      "typical_impact": "Lower WIP and lead time; shorter, lighter carries.",
+      "source": "M. Rother and J. Shook, Learning to See (value stream flow); T. Ohno, Toyota Production System"
+    },
+    {
+      "id": "KC-WAI-01",
+      "category": "NVA_WAITING",
+      "tags": ["waiting", "idle", "machine", "automatic"],
+      "title": "Separate operator from machine cycle (jidoka)",
+      "symptom": "Operator stands and watches a machine during its automatic cycle.",
+      "countermeasure": "Make the machine stop and signal by itself at the end of the cycle or on an abnormality (jidoka, andon) so that the operator can do other work, such as loading the next part or tending a second machine.",
+      "principle": "Jidoka - separate human work from machine work; Waiting waste.",
+      "typical_impact": "Frees the machine-watching time; enables multi-process handling.",
+      "source": "T. Ohno, Toyota Production System (jidoka, autonomation); Toyota Motor Corporation, Toyota Production System overview"
+    },
+    {
+      "id": "KC-WAI-02",
+      "category": "NVA_WAITING",
+      "tags": [
+        "waiting",
+        "idle",
+        "balance",
+        "line balancing",
+        "takt",
+        "starved"
+      ],
+      "title": "Balance work content to takt time (Yamazumi)",
+      "symptom": "Operator waits for parts from the previous station or for the next station to be free.",
+      "countermeasure": "Measure every station's work content, draw a Yamazumi (stacked bar) chart against takt time and move work elements from the bottleneck to stations that wait; combine stations if total work content allows fewer operators.",
+      "principle": "Line balancing to takt time; Waiting waste.",
+      "typical_impact": "Typically 5-20% higher line output or one operator freed for other work.",
+      "source": "M. Rother and R. Harris, Creating Continuous Flow; Lean Enterprise Institute, Lean Lexicon (takt time, operator balance chart)"
+    },
+    {
+      "id": "KC-WAI-03",
+      "category": "NVA_WAITING",
+      "tags": ["waiting", "material shortage", "kanban", "replenishment"],
+      "title": "Kanban replenishment to prevent material waiting",
+      "symptom": "Operator waits because parts or consumables ran out at the station.",
+      "countermeasure": "Introduce a two-bin or kanban system at the station with a fixed replenishment loop and a visible trigger, so supply arrives before the bin is empty.",
+      "principle": "Pull system / kanban; Waiting waste.",
+      "typical_impact": "Removes stock-out waiting; fewer line stops.",
+      "source": "T. Ohno, Toyota Production System (kanban); Lean Enterprise Institute, Lean Lexicon"
+    },
+    {
+      "id": "KC-SRC-01",
+      "category": "NVA_SEARCH",
+      "tags": ["search", "searching", "tools", "5s", "shadow board"],
+      "title": "5S with shadow boards for tools",
+      "symptom": "Operator looks around or searches for tools, parts or documents.",
+      "countermeasure": "Run 5S: remove unneeded items (Sort), give every tool one marked home such as a shadow board or foam cut-out at the point of use (Set in order), and audit it every shift (Standardize, Sustain).",
+      "principle": "5S / visual workplace; motion and searching are waste.",
+      "typical_impact": "Search time drops close to zero; missing tools become visible at a glance.",
+      "source": "H. Hirano, 5 Pillars of the Visual Workplace"
+    },
+    {
+      "id": "KC-SRC-02",
+      "category": "NVA_SEARCH",
+      "tags": ["search", "kit", "kitting", "parts"],
+      "title": "Kitting: deliver one cycle's parts as a set",
+      "symptom": "Operator picks and selects among many parts or variants each cycle.",
+      "countermeasure": "Prepare a kit per product or per cycle offline (by material handling) so the operator takes parts from one tray in sequence; use colour coding for variants.",
+      "principle": "Separate preparation (external) from value-adding work (internal); error-proofing.",
+      "typical_impact": "Shorter picking time and fewer wrong-part errors.",
+      "source": "Lean Enterprise Institute, Lean Lexicon (kitting, point-of-use storage)"
+    },
+    {
+      "id": "KC-NNV-01",
+      "category": "NNVA",
+      "tags": ["inspection", "inspecting", "checking", "poka-yoke", "quality"],
+      "title": "Build quality in with poka-yoke instead of manual inspection",
+      "symptom": "Operator spends time visually inspecting or measuring every part.",
+      "countermeasure": "Add error-proofing (poka-yoke) devices such as guide pins, sensors or go/no-go gauges built into the fixture so defects cannot be made or are detected automatically at the source.",
+      "principle": "Zero Quality Control: source inspection and poka-yoke; inspection is necessary but non-value-adding.",
+      "typical_impact": "Removes most inspection time and prevents defects from flowing on.",
+      "source": "S. Shingo, Zero Quality Control: Source Inspection and the Poka-Yoke System"
+    },
+    {
+      "id": "KC-STD-01",
+      "category": "UNCERTAIN",
+      "tags": ["standard work", "variation", "sop", "deviation"],
+      "title": "Write and train standard work",
+      "symptom": "The work sequence or timing differs between cycles or operators, or activity is hard to classify.",
+      "countermeasure": "Define standard work (takt time, work sequence, standard WIP) with the best-practice method observed, post it at the station with key points and pictures, and train with Job Instruction; review the standard as the baseline for the next lss.",
+      "principle": "Standardized work is the foundation for kaizen; TWI Job Instruction.",
+      "typical_impact": "Lower cycle-time variation; a stable baseline to measure improvements.",
+      "source": "Lean Enterprise Institute, Lean Lexicon (standardized work); Training Within Industry (TWI) Job Instruction manual"
+    },
+    {
+      "id": "KC-STD-02",
+      "category": "GENERAL",
+      "tags": ["ecrs", "simplify", "eliminate", "combine", "rearrange"],
+      "title": "ECRS review of every non-value-adding element",
+      "symptom": "Several non-value-adding steps appear in the cycle.",
+      "countermeasure": "For each element ask in order: can it be Eliminated? Combined with another? Rearranged in sequence or place? Simplified? Start with elimination, which gives the biggest gain at the lowest cost.",
+      "principle": "ECRS work simplification.",
+      "typical_impact": "A structured way to turn observed waste into countermeasures.",
+      "source": "ECRS method of work simplification (industrial engineering practice); R. M. Barnes, Motion and Time Study"
+    },
+    {
+      "id": "KC-GEN-01",
+      "category": "GENERAL",
+      "tags": ["5 whys", "root cause", "go and see"],
+      "title": "Confirm the root cause on the shop floor with 5 Whys",
+      "symptom": "A waste or deviation is seen, but its cause is not clear from the video.",
+      "countermeasure": "Go to the shop floor, ask the operator, and ask 'why' repeatedly until reaching a cause that can be acted on; confirm it before investing in a countermeasure.",
+      "principle": "Genchi genbutsu (go and see); 5 Whys.",
+      "typical_impact": "Avoids fixing symptoms; operator buy-in.",
+      "source": "T. Ohno, Toyota Production System (5 Whys); J. Liker, The Toyota Way (genchi genbutsu)"
+    },
+    {
+      "id": "KC-SAF-01",
+      "category": "SAFETY",
+      "tags": ["helmet", "hard hat", "head protection", "ppe", "no_helmet"],
+      "title": "Enforce head protection where head hazards exist",
+      "symptom": "Person in the work area without a safety helmet / hard hat.",
+      "countermeasure": "Mark hard-hat zones at their entrances, provide helmets at the entry point, include the check in the shift-start routine and in leader standard work, and use the camera alert as an immediate reminder rather than for discipline.",
+      "principle": "Employers must ensure head protection where there is a risk of head injury from falling or flying objects or electrical hazards.",
+      "typical_impact": "Compliance with PPE rules; fewer head injuries.",
+      "source": "OSHA 29 CFR 1910.135 Head protection; OSHA 29 CFR 1910.132 PPE general requirements"
+    },
+    {
+      "id": "KC-SAF-02",
+      "category": "SAFETY",
+      "tags": ["running", "rush", "aisle", "forklift", "walkway"],
+      "title": "Remove the reasons to run; separate people and vehicles",
+      "symptom": "People running on the shop floor.",
+      "countermeasure": "Find why people run (late material, far-away andon response, line stops) and fix that cause; mark pedestrian walkways separated from forklift aisles, and add mirrors and speed rules at crossings.",
+      "principle": "Walking-working surfaces kept clear and marked; running is usually a symptom of a flow problem.",
+      "typical_impact": "Fewer slip, trip and collision incidents; often reveals a hidden waiting or supply problem.",
+      "source": "OSHA 29 CFR 1910 Subpart D Walking-Working Surfaces; OSHA 29 CFR 1910.176 Handling materials (aisles and passageways)"
+    },
+    {
+      "id": "KC-SAF-03",
+      "category": "SAFETY",
+      "tags": ["phone", "mobile", "distraction", "phone_use"],
+      "title": "Phone-free zones near machines and vehicles",
+      "symptom": "Operator using a mobile phone while working or walking on the floor.",
+      "countermeasure": "Define phone-free zones around moving machinery and vehicle routes, provide phone lockers or a designated phone area at break points, and make communication needs (andon, radio) available without personal phones.",
+      "principle": "Distraction control near hazardous energy and traffic.",
+      "typical_impact": "Fewer distraction-related incidents and quality slips.",
+      "source": "Common site safety practice; National Safety Council guidance on distraction"
+    },
+    {
+      "id": "KC-SAF-04",
+      "category": "SAFETY",
+      "tags": ["fall", "lying", "person_down", "slip", "trip", "emergency"],
+      "title": "Immediate response to a person down; remove slip and trip hazards",
+      "symptom": "A person falls or lies on the floor.",
+      "countermeasure": "Trigger the emergency response at once (first aid, supervisor); then check the area for slip and trip causes (spills, cables, uneven floor, clutter) and fix them with housekeeping, drip trays and cable covers.",
+      "principle": "Walking-working surfaces must be kept clean, orderly and free of hazards.",
+      "typical_impact": "Faster response; removal of the hazard that caused the fall.",
+      "source": "OSHA 29 CFR 1910.22 Walking-working surfaces general requirements"
+    },
+    {
+      "id": "KC-ERG-01",
+      "category": "SAFETY",
+      "tags": [
+        "lifting",
+        "bending",
+        "ergonomics",
+        "back",
+        "posture",
+        "reaching"
+      ],
+      "title": "Reduce lifting and bending with lift aids and work height",
+      "symptom": "Operator bends deeply or lifts heavy items from the floor or above the shoulders.",
+      "countermeasure": "Raise bins and parts to between knee and shoulder height, use tilting stands, lift tables or balancers, and assess the task with the NIOSH lifting equation or a RULA/REBA posture score.",
+      "principle": "Ergonomic risk assessment of manual handling.",
+      "typical_impact": "Lower musculoskeletal injury risk; usually also shorter handling time.",
+      "source": "NIOSH, Applications Manual for the Revised NIOSH Lifting Equation (DHHS/NIOSH 94-110); McAtamney & Corlett, RULA (1993)"
+    }
+  ]
+}

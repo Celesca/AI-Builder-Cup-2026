@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VALZ Demo</title>
+<style>
+  :root {
+    --paper: #f5f5f3; --card: #ffffff; --ink: #23262f; --muted: #5b6372; --rule: rgba(35,38,47,0.12);
+    --accent: #bf4520; --accent-tint: rgba(191,69,32,0.08); --ok: #2f7d4f;
+    --c-va: #2f9e5b; --c-nnva: #4a86c5; --c-motion: #e8893a; --c-transport: #d4a72c; --c-waiting: #d0453a;
+    --c-search: #8b5cc4; --c-none: #d9dbe0; --c-uncertain: #9aa0aa;
+    --sev-high: #c62f2f; --sev-medium: #e08a1e; --sev-low: #6b7280;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #16181d; --card: #1f2229; --ink: #e8e9ec; --muted: #a2a9b6; --rule: rgba(232,233,236,0.12);
+      --accent-tint: rgba(191,69,32,0.18); --c-none: #3a3f4a;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--paper); color: var(--ink); line-height: 1.5; padding: 24px 16px 64px; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  header { margin-bottom: 20px; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 26px; font-weight: 600; letter-spacing: -.01em; margin: 4px 0; }
+  h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .sub { color: var(--muted); font-size: 14px; max-width: 75ch; }
+  .pipeline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; font-size: 12px; font-family: var(--mono); color: var(--muted); }
+  .pipeline span.step { background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 2px 8px; color: var(--ink); }
+  .grid { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 12px 0 4px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; font: inherit; font-size: 13px; color: var(--ink); background: var(--paper);
+    border: 1px solid var(--rule); border-radius: 5px; padding: 7px 9px;
+  }
+  textarea { min-height: 110px; font-family: var(--mono); font-size: 12px; resize: vertical; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .checks { display: flex; gap: 16px; margin-top: 12px; font-size: 13px; }
+  .checks label { display: flex; gap: 6px; align-items: center; margin: 0; font-weight: 500; color: var(--ink); }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  button.run { width: 100%; margin-top: 16px; padding: 10px; font: inherit; font-weight: 600; color: #fff; background: var(--accent);
+    border: 0; border-radius: 6px; cursor: pointer; }
+  button.run:disabled { opacity: .55; cursor: progress; }
+  .status { font-size: 12px; font-family: var(--mono); color: var(--muted); margin-top: 8px; min-height: 18px; }
+  .status.error { color: var(--sev-high); }
+  .badge { display: inline-block; font-family: var(--mono); font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--rule); color: var(--muted); }
+  .badge.ok { color: var(--ok); border-color: var(--ok); }
+  .badge.warn { color: var(--sev-medium); border-color: var(--sev-medium); }
+  video { width: 100%; max-height: 380px; background: #000; border-radius: 6px; display: block; }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 48px 16px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 14px 0; }
+  .kpi { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; }
+  .kpi .v { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .kpi .l { font-size: 11px; color: var(--muted); }
+  .timeline { margin-top: 12px; }
+  .lane { display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .lane-name { font-size: 11px; font-family: var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track { position: relative; height: 18px; background: var(--paper); border-radius: 3px; overflow: hidden; cursor: pointer; }
+  .bar { position: absolute; top: 0; bottom: 0; }
+  .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); pointer-events: none; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  .section { margin-top: 16px; }
+  .kcards { display: grid; gap: 10px; }
+  .kcard { border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 6px; padding: 12px 14px; background: var(--card); }
+  .kcard .top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .kcard h3 { font-size: 14px; font-weight: 600; flex: 1 1 200px; }
+  .chip { font-family: var(--mono); font-size: 10px; padding: 1px 6px; border-radius: 3px; background: var(--paper); color: var(--muted); border: 1px solid var(--rule); }
+  .chip.high { color: var(--sev-high); border-color: var(--sev-high); }
+  .chip.medium { color: var(--sev-medium); border-color: var(--sev-medium); }
+  .kcard p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .kcard p b { color: var(--ink); font-weight: 600; }
+  .times { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .time { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 3px; background: var(--accent-tint); color: var(--accent); cursor: pointer; border: 0; }
+  .roi { margin-top: 8px; font-size: 12px; padding: 6px 8px; background: var(--paper); border-radius: 4px; }
+  .events { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .event { border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--card); cursor: pointer; }
+  .event img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; background: var(--paper); }
+  .event div { padding: 8px 10px; font-size: 12px; }
+  .event .sev { font-family: var(--mono); font-size: 10px; text-transform: uppercase; font-weight: 700; }
+  ul.plain { list-style: none; display: grid; gap: 6px; }
+  ul.plain li { font-size: 13px; }
+  details { margin-top: 16px; }
+  summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  pre { font-family: var(--mono); font-size: 11px; background: var(--paper); border-radius: 6px; padding: 10px; overflow: auto; max-height: 400px; margin-top: 8px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">VALZ · Proof of concept</div>
+    <h1>VALZ pipeline demo</h1>
+    <p class="sub">Upload a workstation or CCTV clip. The Safety Agent checks your safety rules and labels what the worker does in every sampled frame. The Gemba Kaizen Agent then turns the waste and violations into Gemba Kaizen suggestions.</p>
+    <div class="pipeline">
+      <span class="step">Video</span>→<span class="step">Safety Agent · Qwen3-VL</span>+<span class="step">People · YOLO</span>→<span class="step">Gemba Kaizen Engine</span>→<span class="step">Gemba Kaizen Agent · LLM + knowledge cards</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <form class="card" id="form">
+      <h2>Input</h2>
+      <label for="file">Video</label>
+      <input type="file" id="file" name="file" accept="video/*" required>
+
+      <label for="rules">Safety rules (one per line, optional severity prefix)</label>
+      <textarea id="rules" name="rules" spellcheck="false"></textarea>
+      <div class="hint">e.g. <code>high: a person who is not wearing a safety helmet</code></div>
+
+      <label for="station_name">Station</label>
+      <input type="text" id="station_name" name="station_name" placeholder="Assembly cell 3">
+      <label for="process_description">What the station does</label>
+      <input type="text" id="process_description" name="process_description" placeholder="Fasten 4 screws on the motor housing">
+      <div class="row2">
+        <div><label for="cycle_time_s">Cycle time (s)</label><input type="number" id="cycle_time_s" name="cycle_time_s" min="0" step="0.1" placeholder="optional"></div>
+        <div><label for="takt_time_s">Takt time (s)</label><input type="number" id="takt_time_s" name="takt_time_s" min="0" step="0.1" placeholder="optional"></div>
+      </div>
+      <div class="row2">
+        <div><label for="language">Gemba Kaizen language</label>
+          <select id="language" name="language"><option value="en">English</option><option value="th">ไทย</option><option value="ja">日本語</option></select></div>
+        <div><label for="sample_fps">Frames / second</label>
+          <select id="sample_fps" name="sample_fps"><option value="0.5">0.5 (faster)</option><option value="1" selected>1</option><option value="2">2 (slower)</option></select></div>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" id="use_llm" checked> Use LLM</label>
+        <label><input type="checkbox" id="count_people" checked> Count people</label>
+      </div>
+      <button class="run" id="run" type="submit">Analyze video</button>
+      <div class="status" id="status"></div>
+      <div class="status" id="llm"></div>
+    </form>
+
+    <main>
+      <div class="card">
+        <video id="video" controls playsinline class="hidden"></video>
+        <div class="empty" id="empty">Choose a video, then press <b>Analyze video</b>. A 1-minute clip with 4 rules takes about 1–3 minutes on a laptop GPU.</div>
+        <div id="timelineBox" class="timeline hidden"></div>
+      </div>
+
+      <div id="results" class="hidden">
+        <div class="kpis" id="kpis"></div>
+
+        <div class="card section">
+          <h2>Gemba Kaizen suggestions <span class="badge" id="source"></span></h2>
+          <p class="sub" id="summary" style="margin-bottom:10px"></p>
+          <div class="kcards" id="kcards"></div>
+        </div>
+
+        <div class="card section">
+          <h2>Safety events</h2>
+          <div class="events" id="events"></div>
+          <h2 style="margin-top:14px">Safety actions</h2>
+          <ul class="plain" id="actions"></ul>
+        </div>
+
+        <div class="card section">
+          <h2>Questions for the operator</h2>
+          <ul class="plain" id="questions"></ul>
+          <h2 style="margin-top:14px">Knowledge cards used</h2>
+          <ul class="plain" id="kb"></ul>
+        </div>
+
+        <details>
+          <summary>Raw JSON response</summary>
+          <pre id="raw"></pre>
+        </details>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+const CATEGORY = {
+  VA: ['Value-adding', 'var(--c-va)'], NNVA: ['Inspection (NNVA)', 'var(--c-nnva)'],
+  NVA_MOTION: ['Motion', 'var(--c-motion)'], NVA_TRANSPORT: ['Transport', 'var(--c-transport)'],
+  NVA_WAITING: ['Waiting', 'var(--c-waiting)'], NVA_SEARCH: ['Searching', 'var(--c-search)'],
+  NO_PERSON: ['No person', 'var(--c-none)'], UNCERTAIN: ['Unclear', 'var(--c-uncertain)'],
+};
+const SEV = { high: 'var(--sev-high)', medium: 'var(--sev-medium)', low: 'var(--sev-low)' };
+const $ = (id) => document.getElementById(id);
+const video = $('video');
+let duration = 0;
+
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'style') node.style.cssText = v;
+    else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined) node.setAttribute(k, v);
+  }
+  for (const c of children.flat()) if (c !== null && c !== undefined) node.append(c instanceof Node ? c : String(c));
+  return node;
+}
+const mmss = (t) => { t = Math.max(0, Math.round(t)); return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+const seek = (t) => { video.currentTime = t; video.play().catch(() => {}); video.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+const timeChip = (start, end) => el('button', { class: 'time', type: 'button', onclick: () => seek(start) },
+  end !== undefined ? `${mmss(start)}–${mmss(end)}` : mmss(start));
+
+// Status of the Gemba Kaizen Agent and default rules
+fetch('lss/status').then(r => r.json()).then(s => {
+  if (!$('rules').value) $('rules').value = (s.default_rules || []).map(r => `${r.severity}: ${r.prompt}`).join('\n');
+  $('llm').textContent = s.llm_configured ? `LLM: ${s.model} via OpenRouter` : 'LLM: not configured (OPENROUTER_API_KEY), rule-based Gemba Kaizen';
+}).catch(() => {});
+
+$('file').addEventListener('change', () => {
+  const f = $('file').files[0];
+  if (!f) return;
+  video.src = URL.createObjectURL(f);
+  video.classList.remove('hidden');
+  $('empty').classList.add('hidden');
+});
+
+$('form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const f = $('file').files[0];
+  if (!f) return;
+  const data = new FormData();
+  data.append('file', f);
+  for (const id of ['rules', 'station_name', 'process_description', 'language', 'sample_fps', 'cycle_time_s', 'takt_time_s']) {
+    const v = $(id).value.trim();
+    if (v) data.append(id, v);
+  }
+  data.append('use_llm', $('use_llm').checked);
+  data.append('count_people', $('count_people').checked);
+
+  const started = Date.now();
+  const status = $('status');
+  status.className = 'status';
+  const tick = setInterval(() => { status.textContent = `Analyzing… ${Math.round((Date.now() - started) / 1000)} s (Safety Agent → Gemba Kaizen Agent)`; }, 500);
+  $('run').disabled = true;
+  try {
+    const res = await fetch('analysis/analyze/upload', { method: 'POST', body: data });
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    if (!res.ok) throw new Error(typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail));
+    render(body);
+    status.textContent = `Done in ${Math.round((Date.now() - started) / 1000)} s · ${body.safety.stats.frames_analyzed} frames at ${body.safety.sample_fps} fps`;
+  } catch (e) {
+    status.className = 'status error';
+    status.textContent = `Error: ${e.message}`;
+  } finally {
+    clearInterval(tick);
+    $('run').disabled = false;
+  }
+});
+
+function renderTimeline(safety) {
+  const box = $('timelineBox');
+  box.replaceChildren();
+  box.classList.remove('hidden');
+  duration = safety.video_duration || 1;
+  const pct = (t) => `${Math.min(100, Math.max(0, t / duration * 100))}%`;
+  const lanes = [];
+
+  const track = (bars) => {
+    const t = el('div', { class: 'track', onclick: (e) => { const r = t.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration); } });
+    bars.forEach(b => t.append(b));
+    const head = el('div', { class: 'playhead', style: 'left:0' });
+    t.append(head);
+    lanes.push(head);
+    return t;
+  };
+  const actBars = safety.activity.segments.map(s => el('div', {
+    class: 'bar', title: `${mmss(s.start_time)} ${s.activity} (${s.duration}s)${s.description ? ' — ' + s.description : ''}`,
+    style: `left:${pct(s.start_time)};width:${pct(s.end_time - s.start_time)};background:${(CATEGORY[s.category] || CATEGORY.UNCERTAIN)[1]}`,
+  }));
+  box.append(el('div', { class: 'lane' }, el('div', { class: 'lane-name' }, 'activity'), track(actBars)));
+
+  for (const rule of safety.rules) {
+    const bars = safety.safety_events.filter(e => e.rule_id === rule.id).map(e => el('div', {
+      class: 'bar', title: `${mmss(e.start_time)} ${e.prompt} (${Math.round(e.peak_confidence * 100)}%)`,
+      style: `left:${pct(e.start_time)};width:max(3px,${pct(e.end_time - e.start_time)});background:${SEV[e.severity]}`,
+    }));
+    box.append(el('div', { class: 'lane' }, el('div', { class: 'lane-name', title: rule.prompt }, rule.id), track(bars)));
+  }
+  box.append(el('div', { class: 'legend' }, Object.values(CATEGORY).map(([name, color]) => el('span', {}, el('i', { style: `background:${color}` }), name)),
+    el('span', {}, el('i', { style: `background:${SEV.high}` }), 'safety (high)'), el('span', {}, el('i', { style: `background:${SEV.medium}` }), 'safety (medium)')));
+
+  video.ontimeupdate = () => lanes.forEach(h => { h.style.left = pct(video.currentTime); });
+}
+
+function render(r) {
+  const { safety, lss } = r;
+  $('results').classList.remove('hidden');
+  renderTimeline(safety);
+
+  const m = lss.metrics;
+  const kpi = (v, l) => el('div', { class: 'kpi' }, el('div', { class: 'v' }, v), el('div', { class: 'l' }, l));
+  $('kpis').replaceChildren(
+    kpi(`${m.va_percent}%`, 'value-adding time'),
+    kpi(`${m.nva_percent}%`, 'non-value-adding time'),
+    kpi(`${m.projected_nva_hours_per_shift} h`, 'projected waste / shift'),
+    kpi(m.safety.events, 'safety events'),
+    kpi(r.person_count ? r.person_count.statistics.max_persons : '–', 'max people on camera'),
+  );
+
+  $('source').textContent = lss.source === 'llm' ? `LLM · ${lss.model}` : 'rule-based';
+  $('source').className = `badge ${lss.source === 'llm' ? 'ok' : 'warn'}`;
+  if (lss.llm_error) $('source').title = lss.llm_error;
+  $('summary').textContent = lss.summary;
+
+  $('kcards').replaceChildren(...(lss.lss_cards.length ? lss.lss_cards.map(c => el('div', { class: 'kcard', style: `border-left-color:${(CATEGORY[c.category] || [0, 'var(--accent)'])[1]}` },
+    el('div', { class: 'top' }, el('h3', {}, c.title), el('span', { class: `chip ${c.priority}` }, c.priority),
+      el('span', { class: 'chip' }, (CATEGORY[c.category] || [c.category])[0]), el('span', { class: 'chip' }, `conf ${Math.round(c.confidence * 100)}%`)),
+    el('p', {}, el('b', {}, 'Observed: '), c.observation),
+    el('p', {}, el('b', {}, 'Root cause: '), c.root_cause),
+    el('p', {}, el('b', {}, 'Gemba Kaizen: '), c.recommendation),
+    el('div', { class: 'times' }, c.evidence.map(e => timeChip(e.start_time, e.end_time)), c.kb_card_ids.map(id => el('span', { class: 'chip' }, id))),
+    c.roi ? el('div', { class: 'roi' }, `≈ ${c.roi.hours_saved_per_shift} h saved per shift`,
+      c.roi.throughput_gain_percent != null ? ` · +${c.roi.throughput_gain_percent}% throughput` : '', ` (${c.roi.basis})`) : null,
+  )) : [el('p', { class: 'sub' }, 'No waste found to improve in this clip.')]));
+
+  $('events').replaceChildren(...(safety.safety_events.length ? safety.safety_events.map(e => el('div', { class: 'event', onclick: () => seek(e.start_time) },
+    e.snapshot ? el('img', { src: e.snapshot, alt: e.prompt }) : null,
+    el('div', {}, el('span', { class: 'sev', style: `color:${SEV[e.severity]}` }, e.severity), ` · ${mmss(e.start_time)} · ${e.duration}s · ${Math.round(e.peak_confidence * 100)}%`,
+      el('div', { style: 'padding:2px 0 0;font-weight:600' }, e.prompt), e.description ? el('div', { style: 'padding:2px 0 0;color:var(--muted)' }, e.description) : null),
+  )) : [el('p', { class: 'sub' }, 'No safety rule was violated.')]));
+
+  $('actions').replaceChildren(...(lss.safety_actions.length ? lss.safety_actions.map(a => el('li', {},
+    el('span', { class: 'sev', style: `color:${SEV[a.severity]};font-family:var(--mono);font-size:11px;font-weight:700` }, a.severity.toUpperCase()), ` ${a.rule_id}: ${a.action} `,
+    a.kb_card_ids.map(id => el('span', { class: 'chip' }, id)))) : [el('li', { class: 'sub' }, '–')]));
+
+  $('questions').replaceChildren(...(lss.operator_questions.length ? lss.operator_questions.map(q => el('li', {}, timeChip(q.timestamp), ' ', q.question)) : [el('li', { class: 'sub' }, '–')]));
+  $('kb').replaceChildren(...lss.knowledge_cards_used.map(k => el('li', {}, el('span', { class: 'chip' }, k.id), ` ${k.title} — `, el('span', { style: 'color:var(--muted)' }, k.source))));
+
+  const slim = JSON.parse(JSON.stringify(r));
+  slim.safety.safety_events.forEach(e => { if (e.snapshot) e.snapshot = '[jpeg]'; });
+  slim.safety.activity.segments.forEach(s => { if (s.snapshot) s.snapshot = '[jpeg]'; });
+  slim.safety.activity.timeline = `[${r.safety.activity.timeline.length} frames]`;
+  $('raw').textContent = JSON.stringify(slim, null, 2);
+}
+</script>
+</body>
+</html>

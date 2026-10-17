@@ -1,0 +1,18 @@
+# HTTPS for the API: Caddy gets and renews a Let's Encrypt certificate for $DOMAIN by itself.
+# Needs DNS for $DOMAIN pointing at this server and ports 80 and 443 open.
+{$DOMAIN} {
+	# Video uploads (docker-compose.yml MAX_VIDEO_MB is 500)
+	request_body {
+		max_size 550MB
+	}
+	reverse_proxy api:8000 {
+		# /gemba/analyze runs several vision passes per frame: allow long requests
+		transport http {
+			dial_timeout 300s
+			response_header_timeout 900s
+			read_timeout 900s
+			write_timeout 900s
+		}
+		flush_interval -1
+	}
+}

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "person_count_result.schema.json",
+  "title": "PersonCountResult",
+  "description": "Return value of PersonCounter.process_video() in person_count_model.py. The API returns it as 'person_count' inside the /video_action/detect responses (without 'video_path'), and from /person_count/detect* with 'video_path' set to the URL or uploaded filename and 'success' added.",
+  "type": "object",
+  "required": ["job_id", "video_path", "model", "timestamp", "video_duration", "statistics", "timeline", "frame_counts"],
+  "additionalProperties": false,
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "pattern": "^yolo_\\d{8}_\\d{6}_\\d{6}$",
+      "description": "yolo_YYYYMMDD_HHMMSS_microseconds",
+      "examples": ["yolo_20261015_165833_644600"]
+    },
+    "video_path": {
+      "type": "string",
+      "description": "Local path of the processed video file"
+    },
+    "model": {
+      "type": "string",
+      "description": "YOLO weights used",
+      "examples": ["yolov8n.pt"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server local time when processing finished (ISO 8601, no timezone)"
+    },
+    "video_duration": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Seconds; from container metadata, or the last sampled timestamp if metadata is missing"
+    },
+    "statistics": { "$ref": "#/$defs/Statistics" },
+    "timeline": { "$ref": "#/$defs/Timeline" },
+    "frame_counts": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per sampled frame, in time order",
+      "items": { "$ref": "#/$defs/FrameCount" }
+    }
+  },
+  "$defs": {
+    "Statistics": {
+      "type": "object",
+      "required": ["frames_analyzed", "frames_with_people", "max_persons", "min_persons", "avg_persons", "peak_timestamp"],
+      "additionalProperties": false,
+      "properties": {
+        "frames_analyzed": { "type": "integer", "minimum": 1, "description": "Number of sampled frames" },
+        "frames_with_people": { "type": "integer", "minimum": 0 },
+        "max_persons": { "type": "integer", "minimum": 0, "description": "Highest count in a single frame" },
+        "min_persons": { "type": "integer", "minimum": 0 },
+        "avg_persons": { "type": "number", "minimum": 0, "description": "Mean count over sampled frames" },
+        "peak_timestamp": { "type": "number", "minimum": 0, "description": "Seconds; first frame with max_persons" }
+      }
+    },
+    "Timeline": {
+      "type": "object",
+      "description": "Parallel arrays for charting count over time (same order as frame_counts)",
+      "required": ["timestamps", "counts"],
+      "additionalProperties": false,
+      "properties": {
+        "timestamps": { "type": "array", "items": { "type": "number", "minimum": 0 } },
+        "counts": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+      }
+    },
+    "FrameCount": {
+      "type": "object",
+      "required": ["frame_idx", "timestamp", "person_count", "detections"],
+      "additionalProperties": false,
+      "properties": {
+        "frame_idx": { "type": "integer", "minimum": 0, "description": "Index in the original video's frames" },
+        "timestamp": { "type": "number", "minimum": 0, "description": "Seconds from the start of the video" },
+        "person_count": { "type": "integer", "minimum": 0, "description": "Equal to the length of detections" },
+        "detections": { "type": "array", "items": { "$ref": "#/$defs/PersonBox" } }
+      }
+    },
+    "PersonBox": {
+      "type": "object",
+      "description": "Pixel coordinates in the original frame",
+      "required": ["person_id", "confidence", "x1", "y1", "x2", "y2", "center_x", "center_y"],
+      "additionalProperties": false,
+      "properties": {
+        "person_id": { "type": "integer", "minimum": 0, "description": "Index within this frame; not stable across frames (no tracking)" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "x1": { "type": "integer" },
+        "y1": { "type": "integer" },
+        "x2": { "type": "integer" },
+        "y2": { "type": "integer" },
+        "center_x": { "type": "integer" },
+        "center_y": { "type": "integer" }
+      }
+    }
+  }
+}

@@ -1,0 +1,2294 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VALZ · Architecture & Team Delegation</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --color-paper: #f5f5f5;
+        --color-paper-2: #ececec;
+        --color-ink: #2d3142;
+        --color-muted: #4f5d75;
+        --color-soft: #5a6580;
+        --color-rule: rgba(45, 49, 66, 0.12);
+        --color-accent: #bf4520;
+        --color-accent-tint: rgba(191, 69, 32, 0.08);
+        --color-link: #2e5aa8;
+        --font-sans: "Geist", system-ui, sans-serif;
+        --font-serif: "Instrument Serif", serif;
+        --font-mono: "Geist Mono", ui-monospace, monospace;
+      }
+      body {
+        font-family: var(--font-sans);
+        background: var(--color-paper);
+        min-height: 100vh;
+        padding: 3rem 2rem;
+        color: var(--color-ink);
+      }
+      .container {
+        max-width: 1280px;
+        margin: 0 auto;
+      }
+      .header {
+        margin-bottom: 2.5rem;
+      }
+      .header-eyebrow,
+      .section-eyebrow {
+        font-family: var(--font-mono);
+        font-size: 0.66rem;
+        font-weight: 500;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--color-muted);
+        margin-bottom: 0.75rem;
+      }
+      h1 {
+        font-family: var(--font-serif);
+        font-size: clamp(1.75rem, 3vw + 1rem, 2.5rem);
+        font-weight: 400;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+        margin-bottom: 0.5rem;
+      }
+      h2 {
+        font-family: var(--font-serif);
+        font-size: 1.6rem;
+        font-weight: 400;
+        letter-spacing: -0.01em;
+        margin-bottom: 1rem;
+      }
+      .subtitle {
+        font-size: 1rem;
+        line-height: 1.55;
+        color: var(--color-muted);
+        max-width: 70ch;
+      }
+      .diagram-container {
+        background: var(--color-paper-2);
+        border-radius: 8px;
+        border: 1px solid var(--color-rule);
+        padding: 1.5rem;
+        overflow-x: auto;
+      }
+      svg {
+        width: 100%;
+        min-width: 1000px;
+        display: block;
+      }
+      section {
+        margin-top: 3rem;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+        gap: 1rem;
+      }
+      .card {
+        background: #fff;
+        border-radius: 6px;
+        border: 1px solid var(--color-rule);
+        padding: 1.25rem;
+      }
+      .card .eyebrow {
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--color-muted);
+        margin-bottom: 0.5rem;
+      }
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-bottom: 0.875rem;
+        padding-bottom: 0.875rem;
+        border-bottom: 1px solid rgba(45, 49, 66, 0.08);
+      }
+      .owner {
+        font-family: var(--font-mono);
+        font-size: 0.65rem;
+        font-weight: 600;
+        background: var(--color-ink);
+        color: var(--color-paper);
+        border-radius: 3px;
+        padding: 0.15rem 0.4rem;
+        letter-spacing: 0.06em;
+      }
+      .owner.coral {
+        background: var(--color-accent);
+      }
+      .card h3 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: -0.005em;
+      }
+      .card h4 {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--color-soft);
+        margin: 0.9rem 0 0.4rem;
+        font-weight: 500;
+      }
+      .card p,
+      .card ul {
+        color: var(--color-muted);
+        font-size: 0.8125rem;
+        line-height: 1.55;
+        list-style: none;
+      }
+      .card li {
+        margin-bottom: 0.3rem;
+        padding-left: 0.875rem;
+        position: relative;
+      }
+      .card li::before {
+        content: "—";
+        position: absolute;
+        left: 0;
+        color: rgba(45, 49, 66, 0.25);
+        font-size: 0.75rem;
+      }
+      .contract {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        color: var(--color-ink);
+        background: var(--color-paper);
+        border-radius: 4px;
+        padding: 0.5rem 0.6rem;
+        line-height: 1.5;
+      }
+      .done {
+        border-left: 2px solid var(--color-accent);
+        padding-left: 0.6rem;
+        color: var(--color-ink) !important;
+      }
+
+      .contracts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+        gap: 1rem;
+      }
+      .contracts .card pre {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        line-height: 1.55;
+        color: var(--color-ink);
+        background: var(--color-paper);
+        border-radius: 4px;
+        padding: 0.75rem;
+        overflow-x: auto;
+        white-space: pre;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border: 1px solid var(--color-rule);
+        border-radius: 6px;
+        overflow: hidden;
+        font-size: 0.8125rem;
+      }
+      th {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--color-soft);
+        text-align: left;
+        padding: 0.7rem 0.9rem;
+        border-bottom: 1px solid var(--color-rule);
+        font-weight: 500;
+      }
+      td {
+        padding: 0.65rem 0.9rem;
+        border-bottom: 1px solid rgba(45, 49, 66, 0.06);
+        color: var(--color-muted);
+        vertical-align: top;
+        line-height: 1.5;
+      }
+      td:first-child {
+        font-family: var(--font-mono);
+        color: var(--color-ink);
+        white-space: nowrap;
+      }
+      tr.gate td {
+        background: var(--color-accent-tint);
+        color: var(--color-ink);
+      }
+
+      .footer {
+        margin-top: 2.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(45, 49, 66, 0.1);
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        color: var(--color-soft);
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <p class="header-eyebrow">
+          Architecture · Team Delegation · U-Hackathon AI Track
+        </p>
+        <h1>
+          VALZ: from factory-floor video to approved Gemba Kaizen action
+        </h1>
+        <p class="subtitle">
+          Live camera frames and recorded clips flow left→right through a
+          perception layer, where BLIP labels every frame and Qwen on OpenRouter
+          steps in only as a last resort. Results land in the Gemba Kaizen
+          (Kaizen) Core as waste-classified segments and safety events, then
+          surface top→down through a multilingual ElevenLabs voice agent (it
+          asks, answers and raises safety alerts in the operator's own language)
+          and a SvelteKit dashboard where the operator approves actions. Every
+          box carries its owner (P1–P5).
+        </p>
+      </div>
+
+      <div class="diagram-container">
+        <svg
+          viewBox="0 0 1260 756"
+          xmlns="http://www.w3.org/2000/svg"
+          role="img"
+          aria-labelledby="ll-title ll-desc"
+        >
+          <title id="ll-title">VALZ architecture with team ownership</title>
+          <desc id="ll-desc">
+            A station camera sends a live stream and recorded clips to
+            pre-processing. BLIP with MiniLM matching labels frames and sends
+            resolved segments and safety events straight to the Kaizen
+            Orchestrator. Frames BLIP cannot resolve, plus their raw keyframes,
+            escalate to a Qwen VLM on OpenRouter, which returns a verdict to the
+            Orchestrator. The Orchestrator computes DMAIC action cards, persists
+            state, sends still-uncertain segments to an ElevenLabs voice agent
+            as questions, and pushes safety and critical alerts to the same
+            agent. The agent talks to the operator in their own language; the
+            operator also approves actions on a SvelteKit dashboard that streams
+            state and posts decisions.
+          </desc>
+          <defs>
+            <pattern
+              id="dots"
+              width="22"
+              height="22"
+              patternUnits="userSpaceOnUse"
+            >
+              <circle cx="1" cy="1" r="0.9" fill="rgba(45,49,66,0.10)" />
+            </pattern>
+            <marker
+              id="arrow"
+              markerWidth="8"
+              markerHeight="6"
+              refX="7"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 8 3, 0 6" fill="#4f5d75" />
+            </marker>
+            <marker
+              id="arrow-accent"
+              markerWidth="8"
+              markerHeight="6"
+              refX="7"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 8 3, 0 6" fill="#bf4520" />
+            </marker>
+            <marker
+              id="arrow-link"
+              markerWidth="8"
+              markerHeight="6"
+              refX="7"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8" />
+            </marker>
+          </defs>
+
+          <rect width="100%" height="100%" fill="#f5f5f5" />
+          <rect width="100%" height="100%" fill="url(#dots)" opacity="0.55" />
+
+          <!-- ============ ZONES (bg → zones → arrows → nodes) ============ -->
+          <rect
+            x="206"
+            y="118"
+            width="572"
+            height="272"
+            rx="8"
+            fill="rgba(45,49,66,0.02)"
+            stroke="rgba(45,49,66,0.10)"
+            stroke-width="0.8"
+          />
+          <rect x="456" y="122" width="72" height="12" rx="2" fill="#f5f5f5" />
+          <text
+            x="492"
+            y="131"
+            fill="#5a6580"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.14em"
+          >
+            PERCEPTION
+          </text>
+
+          <rect
+            x="814"
+            y="118"
+            width="406"
+            height="234"
+            rx="8"
+            fill="rgba(45,49,66,0.02)"
+            stroke="rgba(45,49,66,0.10)"
+            stroke-width="0.8"
+          />
+          <rect x="961" y="122" width="112" height="12" rx="2" fill="#f5f5f5" />
+          <text
+            x="1017"
+            y="131"
+            fill="#5a6580"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.14em"
+          >
+            GEMBA KAIZEN CORE
+          </text>
+
+          <rect
+            x="814"
+            y="408"
+            width="406"
+            height="128"
+            rx="8"
+            fill="rgba(45,49,66,0.02)"
+            stroke="rgba(45,49,66,0.10)"
+            stroke-width="0.8"
+          />
+          <rect x="985" y="412" width="64" height="12" rx="2" fill="#f5f5f5" />
+          <text
+            x="1017"
+            y="421"
+            fill="#5a6580"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.14em"
+          >
+            INTERFACE
+          </text>
+
+          <!-- ============ ARROWS ============ -->
+          <!-- Source → Pre-processing: live stream + recorded clip -->
+          <line
+            x1="170"
+            y1="176"
+            x2="226"
+            y2="176"
+            stroke="#2e5aa8"
+            stroke-width="1.2"
+            marker-end="url(#arrow-link)"
+          />
+          <line
+            x1="170"
+            y1="204"
+            x2="226"
+            y2="204"
+            stroke="#2e5aa8"
+            stroke-width="1.2"
+            marker-end="url(#arrow-link)"
+          />
+          <!-- Pre → BLIP -->
+          <line
+            x1="366"
+            y1="188"
+            x2="422"
+            y2="188"
+            stroke="#4f5d75"
+            stroke-width="1.2"
+            marker-end="url(#arrow)"
+          />
+          <!-- BLIP → Orchestrator (primary, resolved) -->
+          <line
+            x1="562"
+            y1="188"
+            x2="834"
+            y2="188"
+            stroke="#bf4520"
+            stroke-width="1.4"
+            marker-end="url(#arrow-accent)"
+          />
+          <!-- BLIP → Qwen (conditional escalation) -->
+          <path
+            d="M 492,226 V 306 Q 492,314 500,314 H 618"
+            fill="none"
+            stroke="#4f5d75"
+            stroke-width="1"
+            stroke-dasharray="4,3"
+            marker-end="url(#arrow)"
+          />
+          <!-- Pre → Qwen raw keyframes (only on escalation) -->
+          <path
+            d="M 296,226 V 338 Q 296,346 304,346 H 618"
+            fill="none"
+            stroke="#4f5d75"
+            stroke-width="1"
+            stroke-dasharray="4,3"
+            marker-end="url(#arrow)"
+          />
+          <!-- Qwen → Orchestrator verdict -->
+          <path
+            d="M 758,328 H 802 Q 810,328 810,320 V 220 Q 810,212 818,212 H 834"
+            fill="none"
+            stroke="#4f5d75"
+            stroke-width="1.2"
+            marker-end="url(#arrow)"
+          />
+
+          <!-- Core -->
+          <line
+            x1="994"
+            y1="176"
+            x2="1050"
+            y2="176"
+            stroke="#4f5d75"
+            stroke-width="1.2"
+            marker-end="url(#arrow)"
+          />
+          <path
+            d="M 1050,204 H 994"
+            fill="none"
+            stroke="#4f5d75"
+            stroke-width="1"
+            stroke-dasharray="4,3"
+            marker-end="url(#arrow)"
+          />
+          <line
+            x1="1125"
+            y1="226"
+            x2="1125"
+            y2="272"
+            stroke="#4f5d75"
+            stroke-width="1.2"
+            marker-end="url(#arrow)"
+          />
+          <path
+            d="M 970,226 V 296 Q 970,304 978,304 H 1050"
+            fill="none"
+            stroke="#4f5d75"
+            stroke-width="1.2"
+            marker-end="url(#arrow)"
+          />
+
+          <!-- Core ↔ Interface -->
+          <line
+            x1="858"
+            y1="226"
+            x2="858"
+            y2="440"
+            stroke="#bf4520"
+            stroke-width="1.4"
+            marker-end="url(#arrow-accent)"
+          />
+          <line
+            x1="898"
+            y1="226"
+            x2="898"
+            y2="440"
+            stroke="#bf4520"
+            stroke-width="1.4"
+            marker-end="url(#arrow-accent)"
+          />
+          <line
+            x1="946"
+            y1="440"
+            x2="946"
+            y2="226"
+            stroke="#4f5d75"
+            stroke-width="1"
+            stroke-dasharray="4,3"
+            marker-end="url(#arrow)"
+          />
+          <line
+            x1="1105"
+            y1="336"
+            x2="1105"
+            y2="440"
+            stroke="#4f5d75"
+            stroke-width="1.2"
+            marker-end="url(#arrow)"
+          />
+          <line
+            x1="1165"
+            y1="440"
+            x2="1165"
+            y2="336"
+            stroke="#4f5d75"
+            stroke-width="1"
+            stroke-dasharray="4,3"
+            marker-end="url(#arrow)"
+          />
+          <path
+            d="M 1050,478 H 994"
+            fill="none"
+            stroke="#4f5d75"
+            stroke-width="1"
+            stroke-dasharray="4,3"
+            marker-end="url(#arrow)"
+          />
+
+          <!-- Human -->
+          <line
+            x1="834"
+            y1="466"
+            x2="758"
+            y2="466"
+            stroke="#4f5d75"
+            stroke-width="1.2"
+            marker-end="url(#arrow)"
+          />
+          <line
+            x1="758"
+            y1="494"
+            x2="834"
+            y2="494"
+            stroke="#2e5aa8"
+            stroke-width="1.2"
+            marker-end="url(#arrow-link)"
+          />
+          <path
+            d="M 688,516 V 564 Q 688,572 696,572 H 1117 Q 1125,572 1125,564 V 516"
+            fill="none"
+            stroke="#2e5aa8"
+            stroke-width="1.2"
+            marker-end="url(#arrow-link)"
+          />
+
+          <!-- ============ ARROW LABELS ============ -->
+          <g
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            <rect
+              x="183"
+              y="170"
+              width="30"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="198" y="179" fill="#2e5aa8">LIVE</text>
+            <rect
+              x="183"
+              y="198"
+              width="30"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="198" y="207" fill="#2e5aa8">MP4</text>
+            <rect
+              x="374"
+              y="168"
+              width="40"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="394" y="177" fill="#4f5d75">FRAMES</text>
+            <rect
+              x="646"
+              y="168"
+              width="68"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="680" y="177" fill="#bf4520">SEG + EVENTS</text>
+            <rect
+              x="458"
+              y="256"
+              width="68"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="492" y="265" fill="#4f5d75">UNRESOLVED</text>
+            <rect
+              x="264"
+              y="270"
+              width="64"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="296" y="279" fill="#4f5d75">KEYFRAMES</text>
+            <rect
+              x="788"
+              y="264"
+              width="44"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="810" y="273" fill="#4f5d75">VERDICT</text>
+            <rect
+              x="999"
+              y="156"
+              width="46"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="1022" y="165" fill="#4f5d75">COMPUTE</text>
+            <rect
+              x="1004"
+              y="208"
+              width="36"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="1022" y="217" fill="#4f5d75">CARDS</text>
+            <rect
+              x="1131"
+              y="243"
+              width="36"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="1149" y="252" fill="#4f5d75">WRITE</text>
+            <rect
+              x="988"
+              y="286"
+              width="48"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="1012" y="295" fill="#4f5d75">PERSIST</text>
+            <rect
+              x="870"
+              y="300"
+              width="56"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="898" y="309" fill="#bf4520">QUESTION</text>
+            <rect
+              x="836"
+              y="374"
+              width="44"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="858" y="383" fill="#bf4520">ALERT</text>
+            <rect
+              x="921"
+              y="374"
+              width="50"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="946" y="383" fill="#4f5d75">VERIFIED</text>
+            <rect
+              x="1071"
+              y="374"
+              width="28"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="1085" y="383" fill="#4f5d75">SSE</text>
+            <rect
+              x="1171"
+              y="374"
+              width="48"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="1195" y="383" fill="#4f5d75">DECISION</text>
+            <rect
+              x="1002"
+              y="458"
+              width="40"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="1022" y="467" fill="#4f5d75">EMBED</text>
+            <rect
+              x="764"
+              y="446"
+              width="64"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="796" y="455" fill="#4f5d75">ASK · ALERT</text>
+            <rect
+              x="764"
+              y="500"
+              width="64"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="796" y="509" fill="#2e5aa8">REPLY · Q&amp;A</text>
+            <rect
+              x="988"
+              y="554"
+              width="48"
+              height="12"
+              rx="2"
+              fill="#f5f5f5"
+            />
+            <text x="1012" y="563" fill="#2e5aa8">APPROVE</text>
+          </g>
+
+          <!-- ============ NODES ============ -->
+          <!-- 00 Station camera (SRC, P5) -->
+          <rect x="40" y="150" width="130" height="76" rx="6" fill="#f5f5f5" />
+          <rect
+            x="40"
+            y="150"
+            width="130"
+            height="76"
+            rx="6"
+            fill="rgba(79,93,117,0.10)"
+            stroke="#5a6580"
+            stroke-width="1"
+          />
+          <rect
+            x="48"
+            y="158"
+            width="26"
+            height="12"
+            rx="2"
+            fill="transparent"
+            stroke="rgba(90,101,128,0.40)"
+            stroke-width="0.8"
+          />
+          <text
+            x="61"
+            y="167"
+            fill="#5a6580"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            SRC
+          </text>
+          <rect x="136" y="158" width="26" height="12" rx="2" fill="#2d3142" />
+          <text
+            x="149"
+            y="167"
+            fill="#f5f5f5"
+            font-size="7"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            P5
+          </text>
+          <text
+            x="105"
+            y="190"
+            fill="#2d3142"
+            font-size="12"
+            font-weight="600"
+            font-family="'Geist', sans-serif"
+            text-anchor="middle"
+          >
+            Station Camera
+          </text>
+          <text
+            x="105"
+            y="205"
+            fill="#4f5d75"
+            font-size="9"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            live · 30–60 s MP4
+          </text>
+          <text
+            x="105"
+            y="218"
+            fill="#5a6580"
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            before / after
+          </text>
+
+          <!-- 01 Pre-processing (P1) -->
+          <rect x="226" y="150" width="140" height="76" rx="6" fill="#f5f5f5" />
+          <rect
+            x="226"
+            y="150"
+            width="140"
+            height="76"
+            rx="6"
+            fill="#ffffff"
+            stroke="#2d3142"
+            stroke-width="1"
+          />
+          <rect
+            x="234"
+            y="158"
+            width="22"
+            height="12"
+            rx="2"
+            fill="transparent"
+            stroke="rgba(45,49,66,0.40)"
+            stroke-width="0.8"
+          />
+          <text
+            x="245"
+            y="167"
+            fill="#2d3142"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            CV
+          </text>
+          <rect x="332" y="158" width="26" height="12" rx="2" fill="#2d3142" />
+          <text
+            x="345"
+            y="167"
+            fill="#f5f5f5"
+            font-size="7"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            P1
+          </text>
+          <text
+            x="358"
+            y="222"
+            fill="rgba(45,49,66,0.06)"
+            font-size="28"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="end"
+          >
+            01
+          </text>
+          <text
+            x="296"
+            y="190"
+            fill="#2d3142"
+            font-size="12"
+            font-weight="600"
+            font-family="'Geist', sans-serif"
+            text-anchor="middle"
+          >
+            Pre-processing
+          </text>
+          <text
+            x="296"
+            y="205"
+            fill="#4f5d75"
+            font-size="9"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            OpenCV · FFmpeg
+          </text>
+          <text
+            x="296"
+            y="218"
+            fill="#5a6580"
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            clip + live sampler
+          </text>
+
+          <!-- 02 BLIP (P1) -->
+          <rect x="422" y="150" width="140" height="76" rx="6" fill="#f5f5f5" />
+          <rect
+            x="422"
+            y="150"
+            width="140"
+            height="76"
+            rx="6"
+            fill="rgba(45,49,66,0.03)"
+            stroke="rgba(45,49,66,0.30)"
+            stroke-width="1"
+          />
+          <rect
+            x="430"
+            y="158"
+            width="34"
+            height="12"
+            rx="2"
+            fill="transparent"
+            stroke="rgba(45,49,66,0.22)"
+            stroke-width="0.8"
+          />
+          <text
+            x="447"
+            y="167"
+            fill="#5a6580"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            MODEL
+          </text>
+          <rect x="528" y="158" width="26" height="12" rx="2" fill="#2d3142" />
+          <text
+            x="541"
+            y="167"
+            fill="#f5f5f5"
+            font-size="7"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            P1
+          </text>
+          <text
+            x="554"
+            y="222"
+            fill="rgba(45,49,66,0.06)"
+            font-size="28"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="end"
+          >
+            02
+          </text>
+          <text
+            x="492"
+            y="190"
+            fill="#2d3142"
+            font-size="12"
+            font-weight="600"
+            font-family="'Geist', sans-serif"
+            text-anchor="middle"
+          >
+            BLIP Labeler
+          </text>
+          <text
+            x="492"
+            y="205"
+            fill="#4f5d75"
+            font-size="9"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            BLIP + MiniLM
+          </text>
+          <text
+            x="492"
+            y="218"
+            fill="#5a6580"
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            caption → label match
+          </text>
+
+          <!-- 03 Qwen VLM, last resort (P2) -->
+          <rect x="618" y="290" width="140" height="76" rx="6" fill="#f5f5f5" />
+          <rect
+            x="618"
+            y="290"
+            width="140"
+            height="76"
+            rx="6"
+            fill="rgba(45,49,66,0.03)"
+            stroke="rgba(45,49,66,0.30)"
+            stroke-width="1"
+          />
+          <rect
+            x="626"
+            y="298"
+            width="34"
+            height="12"
+            rx="2"
+            fill="transparent"
+            stroke="rgba(45,49,66,0.22)"
+            stroke-width="0.8"
+          />
+          <text
+            x="643"
+            y="307"
+            fill="#5a6580"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            MODEL
+          </text>
+          <rect x="724" y="298" width="26" height="12" rx="2" fill="#2d3142" />
+          <text
+            x="737"
+            y="307"
+            fill="#f5f5f5"
+            font-size="7"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            P2
+          </text>
+          <text
+            x="750"
+            y="362"
+            fill="rgba(45,49,66,0.06)"
+            font-size="28"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="end"
+          >
+            03
+          </text>
+          <text
+            x="688"
+            y="330"
+            fill="#2d3142"
+            font-size="12"
+            font-weight="600"
+            font-family="'Geist', sans-serif"
+            text-anchor="middle"
+          >
+            Qwen VLM
+          </text>
+          <text
+            x="688"
+            y="345"
+            fill="#4f5d75"
+            font-size="9"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            OpenRouter · Qwen
+          </text>
+          <text
+            x="688"
+            y="358"
+            fill="#5a6580"
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            last resort after BLIP
+          </text>
+
+          <!-- 04 Kaizen Orchestrator (FOCAL, P3) -->
+          <rect x="834" y="150" width="160" height="76" rx="6" fill="#f5f5f5" />
+          <rect
+            x="834"
+            y="150"
+            width="160"
+            height="76"
+            rx="6"
+            fill="rgba(191,69,32,0.08)"
+            stroke="#bf4520"
+            stroke-width="1"
+          />
+          <rect
+            x="842"
+            y="158"
+            width="24"
+            height="12"
+            rx="2"
+            fill="transparent"
+            stroke="rgba(191,69,32,0.50)"
+            stroke-width="0.8"
+          />
+          <text
+            x="854"
+            y="167"
+            fill="#bf4520"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            API
+          </text>
+          <rect x="960" y="158" width="26" height="12" rx="2" fill="#2d3142" />
+          <text
+            x="973"
+            y="167"
+            fill="#f5f5f5"
+            font-size="7"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            P3
+          </text>
+          <text
+            x="986"
+            y="222"
+            fill="rgba(191,69,32,0.10)"
+            font-size="28"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="end"
+          >
+            04
+          </text>
+          <text
+            x="914"
+            y="190"
+            fill="#2d3142"
+            font-size="12"
+            font-weight="600"
+            font-family="'Geist', sans-serif"
+            text-anchor="middle"
+          >
+            Kaizen Orchestrator
+          </text>
+          <text
+            x="914"
+            y="205"
+            fill="#4f5d75"
+            font-size="9"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            FastAPI · Python
+          </text>
+          <text
+            x="914"
+            y="218"
+            fill="#5a6580"
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            routes · voice · alerts
+          </text>
+
+          <!-- 05 Kaizen Engine (P3) -->
+          <rect
+            x="1050"
+            y="150"
+            width="150"
+            height="76"
+            rx="6"
+            fill="#f5f5f5"
+          />
+          <rect
+            x="1050"
+            y="150"
+            width="150"
+            height="76"
+            rx="6"
+            fill="#ffffff"
+            stroke="#2d3142"
+            stroke-width="1"
+          />
+          <rect
+            x="1058"
+            y="158"
+            width="34"
+            height="12"
+            rx="2"
+            fill="transparent"
+            stroke="rgba(45,49,66,0.40)"
+            stroke-width="0.8"
+          />
+          <text
+            x="1075"
+            y="167"
+            fill="#2d3142"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            LOGIC
+          </text>
+          <rect x="1166" y="158" width="26" height="12" rx="2" fill="#2d3142" />
+          <text
+            x="1179"
+            y="167"
+            fill="#f5f5f5"
+            font-size="7"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            P3
+          </text>
+          <text
+            x="1192"
+            y="222"
+            fill="rgba(45,49,66,0.06)"
+            font-size="28"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="end"
+          >
+            05
+          </text>
+          <text
+            x="1125"
+            y="190"
+            fill="#2d3142"
+            font-size="12"
+            font-weight="600"
+            font-family="'Geist', sans-serif"
+            text-anchor="middle"
+          >
+            Kaizen Engine
+          </text>
+          <text
+            x="1125"
+            y="205"
+            fill="#4f5d75"
+            font-size="9"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            VA/NVA · σ · ROI
+          </text>
+          <text
+            x="1125"
+            y="218"
+            fill="#5a6580"
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            DMAIC Action Cards
+          </text>
+
+          <!-- 06 State Store (P3) -->
+          <rect
+            x="1050"
+            y="272"
+            width="150"
+            height="64"
+            rx="6"
+            fill="#f5f5f5"
+          />
+          <rect
+            x="1050"
+            y="272"
+            width="150"
+            height="64"
+            rx="6"
+            fill="rgba(45,49,66,0.05)"
+            stroke="#4f5d75"
+            stroke-width="1"
+          />
+          <rect
+            x="1058"
+            y="280"
+            width="22"
+            height="12"
+            rx="2"
+            fill="transparent"
+            stroke="rgba(79,93,117,0.50)"
+            stroke-width="0.8"
+          />
+          <text
+            x="1069"
+            y="289"
+            fill="#4f5d75"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            DB
+          </text>
+          <rect x="1166" y="280" width="26" height="12" rx="2" fill="#2d3142" />
+          <text
+            x="1179"
+            y="289"
+            fill="#f5f5f5"
+            font-size="7"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            P3
+          </text>
+          <text
+            x="1192"
+            y="332"
+            fill="rgba(45,49,66,0.06)"
+            font-size="28"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="end"
+          >
+            06
+          </text>
+          <text
+            x="1125"
+            y="308"
+            fill="#2d3142"
+            font-size="12"
+            font-weight="600"
+            font-family="'Geist', sans-serif"
+            text-anchor="middle"
+          >
+            State Store
+          </text>
+          <text
+            x="1125"
+            y="323"
+            fill="#4f5d75"
+            font-size="9"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            JSON / SQLite
+          </text>
+
+          <!-- Operator (USER) -->
+          <rect x="618" y="440" width="140" height="76" rx="6" fill="#f5f5f5" />
+          <rect
+            x="618"
+            y="440"
+            width="140"
+            height="76"
+            rx="6"
+            fill="rgba(79,93,117,0.10)"
+            stroke="#5a6580"
+            stroke-width="1"
+          />
+          <rect
+            x="626"
+            y="448"
+            width="30"
+            height="12"
+            rx="2"
+            fill="transparent"
+            stroke="rgba(90,101,128,0.40)"
+            stroke-width="0.8"
+          />
+          <text
+            x="641"
+            y="457"
+            fill="#5a6580"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            USER
+          </text>
+          <text
+            x="688"
+            y="480"
+            fill="#2d3142"
+            font-size="12"
+            font-weight="600"
+            font-family="'Geist', sans-serif"
+            text-anchor="middle"
+          >
+            Operator
+          </text>
+          <text
+            x="688"
+            y="495"
+            fill="#4f5d75"
+            font-size="9"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            headset · own language
+          </text>
+          <text
+            x="688"
+            y="508"
+            fill="#5a6580"
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            ground truth · approver
+          </text>
+
+          <!-- 07 ElevenLabs Voice Agent (FOCAL, P4) -->
+          <rect x="834" y="440" width="160" height="76" rx="6" fill="#f5f5f5" />
+          <rect
+            x="834"
+            y="440"
+            width="160"
+            height="76"
+            rx="6"
+            fill="rgba(191,69,32,0.08)"
+            stroke="#bf4520"
+            stroke-width="1"
+          />
+          <rect
+            x="842"
+            y="448"
+            width="34"
+            height="12"
+            rx="2"
+            fill="transparent"
+            stroke="rgba(191,69,32,0.50)"
+            stroke-width="0.8"
+          />
+          <text
+            x="859"
+            y="457"
+            fill="#bf4520"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            VOICE
+          </text>
+          <rect x="960" y="448" width="26" height="12" rx="2" fill="#2d3142" />
+          <text
+            x="973"
+            y="457"
+            fill="#f5f5f5"
+            font-size="7"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            P4
+          </text>
+          <text
+            x="986"
+            y="512"
+            fill="rgba(191,69,32,0.10)"
+            font-size="28"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="end"
+          >
+            07
+          </text>
+          <text
+            x="914"
+            y="480"
+            fill="#2d3142"
+            font-size="12"
+            font-weight="600"
+            font-family="'Geist', sans-serif"
+            text-anchor="middle"
+          >
+            ElevenLabs Agent
+          </text>
+          <text
+            x="914"
+            y="495"
+            fill="#4f5d75"
+            font-size="9"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            STT · LLM · TTS · tools
+          </text>
+          <text
+            x="914"
+            y="508"
+            fill="#5a6580"
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            any lang · Q&amp;A · alerts
+          </text>
+
+          <!-- 08 Dashboard (P5) -->
+          <rect
+            x="1050"
+            y="440"
+            width="150"
+            height="76"
+            rx="6"
+            fill="#f5f5f5"
+          />
+          <rect
+            x="1050"
+            y="440"
+            width="150"
+            height="76"
+            rx="6"
+            fill="#ffffff"
+            stroke="#2d3142"
+            stroke-width="1"
+          />
+          <rect
+            x="1058"
+            y="448"
+            width="22"
+            height="12"
+            rx="2"
+            fill="transparent"
+            stroke="rgba(45,49,66,0.40)"
+            stroke-width="0.8"
+          />
+          <text
+            x="1069"
+            y="457"
+            fill="#2d3142"
+            font-size="7"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+            letter-spacing="0.08em"
+          >
+            UI
+          </text>
+          <rect x="1166" y="448" width="26" height="12" rx="2" fill="#2d3142" />
+          <text
+            x="1179"
+            y="457"
+            fill="#f5f5f5"
+            font-size="7"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            P5
+          </text>
+          <text
+            x="1192"
+            y="512"
+            fill="rgba(45,49,66,0.06)"
+            font-size="28"
+            font-weight="600"
+            font-family="'Geist Mono', monospace"
+            text-anchor="end"
+          >
+            08
+          </text>
+          <text
+            x="1125"
+            y="480"
+            fill="#2d3142"
+            font-size="12"
+            font-weight="600"
+            font-family="'Geist', sans-serif"
+            text-anchor="middle"
+          >
+            Dashboard
+          </text>
+          <text
+            x="1125"
+            y="495"
+            fill="#4f5d75"
+            font-size="9"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            SvelteKit
+          </text>
+          <text
+            x="1125"
+            y="508"
+            fill="#5a6580"
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            text-anchor="middle"
+          >
+            video · timeline · cards
+          </text>
+
+          <!-- Annotation: escalation ladder + alert path (not a legend) -->
+          <rect
+            x="40"
+            y="440"
+            width="540"
+            height="216"
+            rx="6"
+            fill="#ffffff"
+            stroke="rgba(45,49,66,0.12)"
+            stroke-width="0.8"
+          />
+          <text
+            x="56"
+            y="460"
+            fill="#5a6580"
+            font-size="7.5"
+            font-family="'Geist Mono', monospace"
+            letter-spacing="0.16em"
+          >
+            THE ESCALATION LADDER · BUILDER CHECKPOINT 3
+          </text>
+          <g font-family="'Geist', sans-serif" font-size="10.5" fill="#4f5d75">
+            <text x="56" y="482">
+              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
+                02 ·
+              </tspan>
+              BLIP + MiniLM label every frame; clear results go straight to the
+              core.
+            </text>
+            <text x="56" y="500">
+              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
+                03 ·
+              </tspan>
+              What BLIP can't resolve goes to Qwen (OpenRouter) with the raw
+              keyframe.
+            </text>
+            <text x="56" y="518">
+              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
+                04 ·
+              </tspan>
+              Still unclear → UNCERTAIN (grey bar); a question is queued for
+              that timestamp.
+            </text>
+            <text x="56" y="536">
+              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
+                07 ·
+              </tspan>
+              Voice agent asks the operator in their own language, hands-free.
+            </text>
+            <text x="56" y="554">
+              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
+                05 ·
+              </tspan>
+              Answer → verified; Kaizen Engine updates Analyze + ROI; SSE refreshes
+              08.
+            </text>
+          </g>
+          <text
+            x="56"
+            y="580"
+            fill="#bf4520"
+            font-size="7.5"
+            font-family="'Geist Mono', monospace"
+            letter-spacing="0.16em"
+          >
+            THE ALERT PATH · SAFETY &amp; CRITICAL ISSUES
+          </text>
+          <g font-family="'Geist', sans-serif" font-size="10.5" fill="#4f5d75">
+            <text x="56" y="598">
+              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
+                LIVE ·
+              </tspan>
+              camera stream → safety rules only → spoken alert within seconds.
+            </text>
+            <text x="56" y="616">
+              <tspan fill="#bf4520" font-family="'Geist Mono', monospace">
+                CLIP ·
+              </tspan>
+              events found in recorded clips → alert queue; high severity still
+              interrupts.
+            </text>
+          </g>
+          <text
+            x="56"
+            y="644"
+            fill="#2d3142"
+            font-size="14"
+            font-style="italic"
+            font-family="'Instrument Serif', serif"
+          >
+            Cheapest model first, bigger model second, the person who knows
+            last.
+          </text>
+
+          <!-- ============ LEGEND ============ -->
+          <line
+            x1="40"
+            y1="676"
+            x2="1220"
+            y2="676"
+            stroke="rgba(45,49,66,0.10)"
+            stroke-width="0.8"
+          />
+          <text
+            x="40"
+            y="692"
+            fill="#4f5d75"
+            font-size="8"
+            font-family="'Geist Mono', monospace"
+            letter-spacing="0.18em"
+          >
+            LEGEND
+          </text>
+          <g font-size="8.5" font-family="'Geist', sans-serif" fill="#4f5d75">
+            <rect
+              x="40"
+              y="704"
+              width="14"
+              height="10"
+              rx="2"
+              fill="rgba(191,69,32,0.08)"
+              stroke="#bf4520"
+              stroke-width="1"
+            />
+            <text x="60" y="712">Focal / integration</text>
+            <rect
+              x="170"
+              y="704"
+              width="14"
+              height="10"
+              rx="2"
+              fill="#ffffff"
+              stroke="#2d3142"
+              stroke-width="1"
+            />
+            <text x="190" y="712">Service</text>
+            <rect
+              x="250"
+              y="704"
+              width="14"
+              height="10"
+              rx="2"
+              fill="rgba(45,49,66,0.03)"
+              stroke="rgba(45,49,66,0.30)"
+              stroke-width="1"
+            />
+            <text x="270" y="712">Model / 3rd-party API</text>
+            <rect
+              x="390"
+              y="704"
+              width="14"
+              height="10"
+              rx="2"
+              fill="rgba(45,49,66,0.05)"
+              stroke="#4f5d75"
+              stroke-width="1"
+            />
+            <text x="410" y="712">Store / config</text>
+            <rect
+              x="500"
+              y="704"
+              width="14"
+              height="10"
+              rx="2"
+              fill="rgba(79,93,117,0.10)"
+              stroke="#5a6580"
+              stroke-width="1"
+            />
+            <text x="520" y="712">Human / source</text>
+            <line
+              x1="630"
+              y1="709"
+              x2="658"
+              y2="709"
+              stroke="#2e5aa8"
+              stroke-width="1.2"
+              marker-end="url(#arrow-link)"
+            />
+            <text x="666" y="712">Media / human input</text>
+            <line
+              x1="770"
+              y1="709"
+              x2="798"
+              y2="709"
+              stroke="#bf4520"
+              stroke-width="1.4"
+              marker-end="url(#arrow-accent)"
+            />
+            <text x="806" y="712">Primary flow / alert</text>
+            <line
+              x1="910"
+              y1="709"
+              x2="938"
+              y2="709"
+              stroke="#4f5d75"
+              stroke-width="1.2"
+              marker-end="url(#arrow)"
+            />
+            <text x="946" y="712">Data flow</text>
+            <line
+              x1="1010"
+              y1="709"
+              x2="1038"
+              y2="709"
+              stroke="#4f5d75"
+              stroke-width="1"
+              stroke-dasharray="4,3"
+              marker-end="url(#arrow)"
+            />
+            <text x="1046" y="712">Return / conditional</text>
+            <rect x="40" y="726" width="26" height="12" rx="2" fill="#2d3142" />
+            <text
+              x="53"
+              y="735"
+              fill="#f5f5f5"
+              font-size="7"
+              font-weight="600"
+              font-family="'Geist Mono', monospace"
+              text-anchor="middle"
+            >
+              P#
+            </text>
+            <text x="74" y="735">
+              Owner: P1 Vision pipeline &amp; live sampler · P2 Label prompts,
+              safety rules &amp; Qwen escalation · P3 Backend &amp; Kaizen engine ·
+              P4 Multilingual voice agent &amp; alerts · P5 Dashboard, demo
+              &amp; pitch
+            </text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- ============ OWNER CARDS ============ -->
+      <section>
+        <p class="section-eyebrow">Delegation</p>
+        <h2>One owner per box, one contract per arrow</h2>
+        <div class="cards">
+          <div class="card">
+            <p class="eyebrow">Nodes 01 · 02 · Perception</p>
+            <div class="card-header">
+              <span class="owner">P1</span>
+              <h3>Vision Pipeline Engineer</h3>
+            </div>
+            <h4>Tasks</h4>
+            <ul>
+              <li>
+                Clip mode: FFmpeg decode; OpenCV frame-diff → motion energy;
+                keep keyframes where motion changes + a steady baseline sample
+              </li>
+              <li>
+                Live mode: read the camera stream continuously, sample frames,
+                run safety rules only
+              </li>
+              <li>
+                BLIP captions each keyframe; MiniLM matches captions against
+                P2's label prompts
+              </li>
+              <li>
+                Resolved frames → segments.json to P3; unresolved frames + raw
+                keyframes → P2
+              </li>
+              <li>Batch and cache to disk by clip_id</li>
+            </ul>
+            <h4>Contract</h4>
+            <p class="contract">
+              IN live stream + MP4 from P5's camera<br />OUT segments.json
+              (resolved_by blip) → P3 · unresolved → P2
+            </p>
+            <h4>Done when</h4>
+            <p class="done">
+              A 20 s clip becomes labeled segments in under 30 s, and the live
+              sampler keeps up with the camera without falling behind.
+            </p>
+          </div>
+
+          <div class="card">
+            <p class="eyebrow">Node 03 · Perception</p>
+            <div class="card-header">
+              <span class="owner">P2</span>
+              <h3>Labels, Safety Rules &amp; Qwen Escalation</h3>
+            </div>
+            <h4>Tasks</h4>
+            <ul>
+              <li>
+                Own the label vocabulary used by both BLIP matching and Qwen: VA
+                / NNVA / NVA waste types + safety rules with severity (helmet,
+                running, phone, person down)
+              </li>
+              <li>
+                Qwen on OpenRouter (default qwen/qwen3.7-flash) runs only on
+                frames BLIP couldn't resolve: keyframe + label prompt → Yes/No
+                verdict
+              </li>
+              <li>
+                If Qwen can't tell either → class UNCERTAIN, status
+                needs_verification. Never guess.
+              </li>
+              <li>
+                JSON-schema validation + 1 retry; cache verdicts per clip_id as
+                the demo fallback
+              </li>
+              <li>
+                Log how often Qwen is called (cost and latency story for the
+                pitch)
+              </li>
+            </ul>
+            <h4>Contract</h4>
+            <p class="contract">
+              IN unresolved frames + keyframes from P1<br />OUT verdicts (same
+              segment schema, resolved_by vlm or UNCERTAIN) → P3
+            </p>
+            <h4>Done when</h4>
+            <p class="done">
+              The demo clip gives the same segments 3 runs in a row, the
+              blocked-camera moment comes out grey after Qwen also fails, and
+              the staged no-helmet moment is flagged high.
+            </p>
+          </div>
+
+          <div class="card">
+            <p class="eyebrow">Nodes 04 · 05 · 06 · Kaizen Core</p>
+            <div class="card-header">
+              <span class="owner coral">P3</span>
+              <h3>Backend &amp; Kaizen Engine</h3>
+            </div>
+            <h4>Tasks</h4>
+            <ul>
+              <li>
+                FastAPI app: clip runner, live-watch control, state endpoints,
+                SSE stream, decision endpoint
+              </li>
+              <li>
+                Merge BLIP segments + Qwen verdicts into one timeline per clip
+              </li>
+              <li>
+                Kaizen Engine: cycle time mean + σ (Cpk vs takt when takt is
+                known), VA / NNVA / NVA %, DMAIC Action Cards with ROI formula
+              </li>
+              <li>
+                Alert router: live events go out immediately; high severity
+                pre-empts pending questions
+              </li>
+              <li>
+                Store the operator's language (from the agent or dashboard
+                picker); write alerts + cards in it
+              </li>
+              <li>
+                Agent tool endpoints for P4 (alerts, ack, pending question,
+                verify, briefing)
+              </li>
+              <li>
+                Day 0: publish mock segments.json (with one safety event) so
+                P4/P5 never wait
+              </li>
+            </ul>
+            <h4>Contract</h4>
+            <p class="contract">
+              IN segments (P1) · verdicts (P2) · tool calls (P4) · decisions
+              (P5)<br />OUT state + cards + alerts via REST/SSE
+            </p>
+            <h4>Done when</h4>
+            <p class="done">
+              Mock segments go in, cards come out, a verify call reaches the
+              dashboard in under 1 s, and a live high-severity event reaches the
+              voice agent in under 1 s.
+            </p>
+          </div>
+
+          <div class="card">
+            <p class="eyebrow">Node 07 · Interface</p>
+            <div class="card-header">
+              <span class="owner coral">P4</span>
+              <h3>Voice Agent Engineer</h3>
+            </div>
+            <h4>Tasks</h4>
+            <ul>
+              <li>
+                One operator persona (short, polite, hands-free) that replies in
+                the operator's language, across all 70 ElevenLabs languages
+              </li>
+              <li>Three modes: ask, alert, brief</li>
+              <li>
+                Alert mode: high severity interrupts any open question; speak
+                the alert, then ask for a spoken acknowledgement
+              </li>
+              <li>
+                Ask mode opener names the timestamp, e.g. "I saw a 4-second
+                pause at 00:16. Did a part jam?"
+              </li>
+              <li>
+                Map answer → root-cause category (equipment stop, material
+                shortage, …) → verify
+              </li>
+              <li>
+                Hour 1: test STT/TTS for the demo languages (Thai + at least 2
+                others); set up a fallback
+              </li>
+            </ul>
+            <h4>Contract</h4>
+            <p class="contract">
+              IN alerts · pending question · briefing (P3)<br />OUT POST
+              /api/agent/verify · /api/agent/ack (with lang) → P3
+            </p>
+            <h4>Done when</h4>
+            <p class="done">
+              A spoken answer in any demo language turns a grey segment to
+              "verified" in about 3 s, and a high-severity alert is spoken
+              within 2 s of reaching the Orchestrator.
+            </p>
+          </div>
+
+          <div class="card">
+            <p class="eyebrow">Nodes 00 · 08 · Interface + Stage</p>
+            <div class="card-header">
+              <span class="owner">P5</span>
+              <h3>Dashboard, Demo &amp; Pitch</h3>
+            </div>
+            <h4>Tasks</h4>
+            <ul>
+              <li>
+                Set up the station camera (live) and film before/after clips: a
+                deliberate long reach, a blocked-view pause, a no-helmet moment
+              </li>
+              <li>
+                SvelteKit app: video + overlay on the left; VA/NVA/grey timeline
+                synced to playback; DMAIC cards on the right
+              </li>
+              <li>
+                SSE via EventSource; red alert banner for safety / critical
+                events
+              </li>
+              <li>
+                Language picker (sets operator lang); card buttons Approve Trial
+                · Dismiss; embedded voice orb
+              </li>
+              <li>
+                3-min script with a live language switch mid-demo, checkpoint
+                slide, backup screen recording
+              </li>
+            </ul>
+            <h4>Contract</h4>
+            <p class="contract">
+              IN GET state + SSE (P3)<br />OUT POST /api/cards/{id}/decision ·
+              PUT /api/operator → P3
+            </p>
+            <h4>Done when</h4>
+            <p class="done">
+              The full demo runs end-to-end from cached data, even on bad Wi-Fi.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CONTRACTS ============ -->
+      <section>
+        <p class="section-eyebrow">Interfaces · freeze these in hour 1</p>
+        <h2>Shared contracts</h2>
+        <div class="contracts">
+          <div class="card">
+            <p class="eyebrow">P1 internal → P2 · frames.json</p>
+            <pre>
+{
+  "clip_id": "line2_before",
+  "mode": "clip",            // clip | live
+  "frames": [
+    { "t": 16.5,
+      "path": "frames/line2_before/0033.jpg",
+      "motion": 0.08,
+      "keyframe": true,
+      "caption": "a person standing at a table",
+      "label": null,         // no match → escalate
+      "resolved": false }
+  ]
+}</pre>
+          </div>
+          <div class="card">
+            <p class="eyebrow">P1 + P2 → P3 · segments.json</p>
+            <pre>
+{
+  "clip_id": "line2_before",
+  "mode": "clip",
+  "cycle_time_s": 21.4,
+  "segments": [
+    { "id": "s03", "start": 9.0, "end": 11.8,
+      "activity": "reaching", "class": "NVA_MOTION",
+      "resolved_by": "blip", "status": "auto",
+      "evidence": "left hand reaches ~55 cm across table" },
+    { "id": "s05", "start": 16.0, "end": 20.0,
+      "activity": "unknown", "class": "UNCERTAIN",
+      "resolved_by": null, "status": "needs_verification",
+      "evidence": "view blocked; Qwen also unsure" }
+  ],
+  "safety_events": [
+    { "id": "e01", "rule_id": "no_helmet",
+      "severity": "high", "start": 4.0, "end": 7.0,
+      "resolved_by": "vlm" }
+  ]
+}
+// class: VA | NNVA | NVA_MOTION | NVA_TRANSPORT
+//        | NVA_WAITING | NVA_SEARCH | UNCERTAIN
+// resolved_by: blip | vlm | operator | null
+// status: auto | needs_verification | verified
+// severity: high | medium | low</pre>
+          </div>
+          <div class="card">
+            <p class="eyebrow">P3 → P4 / P5 · DMAIC action card</p>
+            <pre>
+{
+  "card_id": "L01",
+  "lang": "en",                    // operator's language
+  "waste": "NVA_MOTION",
+  "segment_ids": ["s03"],
+  "define":  "Reach to Bin B in 100% of cycles",
+  "measure": { "avg_s": 2.4, "sd_s": 0.3,
+               "cycles_seen": 3 },
+  "analyze": "Bin B sits outside the normal work zone",
+  "improve": "Move Bin B 25 cm closer to fixture",
+  "control": "Tape bin position; re-film in 1 week",
+  "seconds_saved_per_cycle": 1.6,
+  "cycles_per_shift": 1346,        // 8 h × 3600 / 21.4 s
+  "hours_saved_per_shift": 0.60,   // 1.6 × 1346 / 3600
+  "throughput_gain_pct": 8.1,      // 21.4 / 19.8 − 1
+  "status": "proposed"             // trial_approved | dismissed
+}</pre>
+          </div>
+          <div class="card">
+            <p class="eyebrow">P3 → P4 / P5 · alert</p>
+            <pre>
+{
+  "alert_id": "a01",
+  "kind": "safety",          // safety | critical | important
+  "severity": "high",        // high   → interrupt now
+                             // medium → next pause
+                             // low    → dashboard only
+  "mode": "live",            // live → seconds · clip → after analysis
+  "source": { "event_id": "e01",
+              "rule_id": "no_helmet", "t": 4.0 },
+  "lang": "th",              // any ElevenLabs language
+  "message": "กรุณาสวมหมวกนิรภัย",
+  "status": "pending"        // spoken | acknowledged
+}</pre>
+          </div>
+          <div class="card">
+            <p class="eyebrow">P3 API · consumed by P4 &amp; P5</p>
+            <pre>
+POST   /api/clips               upload MP4 → run clip pipeline
+POST   /api/live                { camera_url } start live watch
+DELETE /api/live                stop live watch
+GET    /api/clips/{id}/state    segments + events + cards
+                                + metrics
+GET    /api/stream              SSE: segment / card / alert
+POST   /api/cards/{id}/decision approve_trial | dismiss
+PUT    /api/operator            { lang }
+
+# voice-agent tools (P4)
+GET  /api/agent/alerts          unacked alerts, high first
+POST /api/agent/ack             { alert_id, lang }
+GET  /api/agent/pending         next needs_verification Q
+POST /api/agent/verify          { segment_id, answer,
+                                  root_cause, lang }
+GET  /api/agent/briefing        top Gemba Kaizen cards for operator Q&amp;A</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ TIMELINE ============ -->
+      <section>
+        <p class="section-eyebrow">24-hour build plan</p>
+        <h2>Integration gates</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Hour</th>
+              <th>Milestone</th>
+              <th>Who</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>H0–1</td>
+              <td>
+                Freeze the contracts on this page; everyone commits mock data
+                for their output. P4 tests ElevenLabs in the demo languages.
+              </td>
+              <td>All</td>
+            </tr>
+            <tr>
+              <td>H1–8</td>
+              <td>
+                Build in parallel against mocks. P5 sets up the camera and films
+                demo clips (incl. no-helmet moment) by H3 so P1/P2 work on real
+                footage.
+              </td>
+              <td>All</td>
+            </tr>
+            <tr class="gate">
+              <td>H8</td>
+              <td>
+                <strong>Gate 1:</strong> real clip → BLIP → (Qwen on unresolved)
+                → segments + safety events → DMAIC cards (P1→P2→P3). P4/P5 still
+                on mocks.
+              </td>
+              <td>P1 P2 P3</td>
+            </tr>
+            <tr>
+              <td>H8–14</td>
+              <td>
+                Connect voice ↔ backend ↔ dashboard; SSE live updates; approve
+                flow; live camera → alert push; language picker
+              </td>
+              <td>P1 P3 P4 P5</td>
+            </tr>
+            <tr class="gate">
+              <td>H14</td>
+              <td>
+                <strong>Gate 2:</strong> full loop on the demo clip: grey →
+                voice question → verified → ROI updates, and live no-helmet →
+                spoken alert in the operator's language → acknowledged
+              </td>
+              <td>All</td>
+            </tr>
+            <tr>
+              <td>H14–18</td>
+              <td>
+                Feature freeze. Cache all BLIP + Qwen output; tune label prompts
+                only.
+              </td>
+              <td>P1 P2 P3</td>
+            </tr>
+            <tr>
+              <td>H18–22</td>
+              <td>
+                Rehearse the 3-minute demo (incl. language switch) at least 3
+                times; record a backup video
+              </td>
+              <td>P4 P5</td>
+            </tr>
+            <tr>
+              <td>H22–24</td>
+              <td>
+                Polish the pitch and the checkpoint slide; final run-through
+              </td>
+              <td>All</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <div class="footer">
+        <span>valz · architecture &amp; delegation</span>
+        <span>Camera → BLIP (→ Qwen) → Kaizen Core → ElevenLabs</span>
+      </div>
+    </div>
+  </body>
+</html>

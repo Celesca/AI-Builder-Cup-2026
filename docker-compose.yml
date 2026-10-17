@@ -1,0 +1,50 @@
+# Full system for one VM: nginx (port 80) -> frontend (SvelteKit dashboard) -> ai_backend (FastAPI)
+#
+#   cp ai_backend/.env.example ai_backend/.env   # set OPENROUTER_API_KEY
+#   docker compose up --build                    # http://localhost  (API docs at /docs)
+#
+# ai_backend/docker-compose.yml still runs the backend on its own (api + nginx).
+services:
+  api:
+    build: ./ai_backend
+    image: valz-api
+    expose:
+      - "8000"
+    # OPENROUTER_API_KEY, VLM_MODEL, LSS_LLM_MODEL ...
+    env_file:
+      - path: ./ai_backend/.env
+        required: false
+    environment:
+      # Nothing to preload: the VLM and the Agent run on OpenRouter, YOLO loads on first use
+      PRELOAD_MODEL: "0"
+      MAX_VIDEO_MB: "500"
+    volumes:
+      - hf-cache:/app/.cache/huggingface
+      - voice-data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: valz-frontend
+    expose:
+      - "3000"
+    environment:
+      AI_BACKEND_URL: http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - api
+    restart: unless-stopped
+
+volumes:
+  hf-cache:
+  voice-data:
