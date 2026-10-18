@@ -1,7 +1,6 @@
-# Adds HTTPS to the full system: Caddy replaces nginx on ports 80 and 443 (for a Compute Engine VM).
-#
-#   DOMAIN=valz.example.com docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
-#
+# One VM, two HTTPS hosts: valz.limitlesstech-co.com (frontend), gemba.limitlesstech-co.com (API).
+# Caddy replaces nginx on ports 80/443 and renews both certificates.
+#   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
 # See docs/DEPLOYMENT_VM.md.
 services:
   nginx:
@@ -9,8 +8,16 @@ services:
 
   frontend:
     environment:
+      # /config publishes this HTTPS URL, linking browser calls and uploads to the API host.
+      AI_BACKEND_URL: "https://${API_DOMAIN:-gemba.limitlesstech-co.com}"
+      ORIGIN: "https://${DOMAIN:-valz.limitlesstech-co.com}"
       # On a public host the proxy must not forward to an address a visitor types into the UI
       ALLOW_BACKEND_OVERRIDE: "false"
+
+  api:
+    environment:
+      # Browser requests go directly from the dashboard to the API, including video uploads.
+      ALLOWED_ORIGINS: "https://${DOMAIN:-valz.limitlesstech-co.com}"
 
   caddy:
     image: caddy:2
@@ -19,7 +26,8 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      DOMAIN: "${DOMAIN:?set DOMAIN, for example valz.example.com}"
+      DOMAIN: "${DOMAIN:-valz.limitlesstech-co.com}"
+      API_DOMAIN: "${API_DOMAIN:-gemba.limitlesstech-co.com}"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data # the certificate: keep it between restarts

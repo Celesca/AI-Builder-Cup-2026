@@ -60,7 +60,7 @@ No rule crossed its 60 % threshold, and the app says so.
 | Kaizen cards, safety actions, operator questions | Strict JSON schema, grounded in 19 curated lean and ergonomics cards | **Gemini 3.1 Flash-Lite** via the **Gemini API** |
 | Waste seconds, per-shift projection, ROI | Plain Python: times come from frame timestamps, never from the model | — |
 | Person boxes and people count | YOLOv8n, local | — |
-| Demo dashboard | Static SvelteKit build, cached demo clips | **Firebase Hosting** (or Cloud Run with the Dockerfile) |
+| Dashboard | SvelteKit Node server on the VM, cached demo clips and live API | Optional static demo build for **Firebase Hosting** |
 
 The backend talks to any OpenAI-compatible endpoint, so the Gemini API is a setting, not a code path: see
 [ai_backend/.env.example](ai_backend/.env.example) (`OPENROUTER_URL`, `VLM_MODEL`, `LSS_LLM_MODEL`, `LLM_MIN_INTERVAL_S` for the free tier).
@@ -75,7 +75,7 @@ team delegation, shared data contracts and the 24-hour build plan, is in
 to the fully managed design; see [Deploy on Google Cloud](#deploy-on-google-cloud).
 
 > **Status.** The diagram is the target architecture. Today both agents run on Gemini 3.1 Flash-Lite through the Gemini API, the
-> dashboard has a static demo build for Firebase Hosting, and the backend runs locally or on one VM with Docker Compose. Vertex AI, Workflows, Eventarc,
+> dashboard and backend run together on one VM with Docker Compose and Caddy HTTPS (no Vercel dependency). A separate static demo build remains optional. Vertex AI, Workflows, Eventarc,
 > Firestore, Pub/Sub and BigQuery are planned, not built. The Voice Agent still uses ElevenLabs. [Project status](#project-status) lists
 > each piece.
 
@@ -113,9 +113,10 @@ to the fully managed design; see [Deploy on Google Cloud](#deploy-on-google-clou
 Segment classes are `VA`, `NVA_MOTION`, `NVA_TRANSPORT`, `NVA_WAITING`, `NVA_SEARCH`, `SAFETY_ERGO`, `SOP_DEVIATION` and `UNCERTAIN`.
 A segment's status moves from `auto` to `needs_verification` to `verified`. The engine, not the model, computes the numbers.
 
-## Deploy the demo dashboard (free)
+## Optional: deploy only the cached demo (free)
 
-The dashboard can be built as a static single-page app that opens the bundled demo clips with no backend. It is served from
+**The full application is deployed on the VM**; see [the VM guide](docs/DEPLOYMENT_VM.md). Vercel is not required.
+The dashboard can also be built as a static single-page app that opens the bundled demo clips with no backend, for example on
 **Firebase Hosting** on the free Spark plan (no billing account):
 
 ```bash
@@ -145,12 +146,18 @@ Two paths, from the fewest Google services to the most managed. Pick one; the se
 
 The Docker Compose stack in this repository runs on one Compute Engine VM, with Caddy for HTTPS ([docker-compose.https.yml](docker-compose.https.yml),
 [deploy/Caddyfile](deploy/Caddyfile)). Part A needs no code changes. Part B adds Firestore for decisions that every manager sees and Firebase Authentication
-for Google sign-in. Until part B exists the site has no sign-in, so the guide has you turn on a Caddy password first.
+for Google sign-in. Until part B exists the site has no sign-in; protect both the dashboard and the public API before wider use.
 
 ```bash
 # on the VM, after DNS points at it (docs/DEPLOYMENT_VM.md, part A)
-DOMAIN=valz.example.com docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
+DOMAIN=valz.limitlesstech-co.com API_DOMAIN=gemba.limitlesstech-co.com \
+  docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
 ```
+
+The current VM serves the dashboard at **https://valz.limitlesstech-co.com** and the API at
+**https://gemba.limitlesstech-co.com** (Swagger: `/docs`). Both run in the same Compose stack. The HTTPS override sets the
+frontend's backend URL and API CORS origin automatically; both DNS records must point at the VM.
+See [the VM-specific deployment instructions](docs/DEPLOYMENT_VM.md#this-vm-frontend-and-api-on-separate-domains).
 
 ### Full: managed services
 
@@ -180,8 +187,9 @@ of services, each with what it does for VALZ, the tool that deploys it, the comm
 | §19 | Logging, Monitoring, Trace, Error Reporting, budgets | automatic plus gcloud |
 | §20–§21 | End-to-end check, tear down | — |
 
-The commands in both guides have not been run against a live project; check flags with `gcloud <command> --help`. The Compose override
-and the Caddy configuration for the VM path were validated with `docker compose config` and `caddy validate`.
+The Google Cloud provisioning commands in both guides have not been run against a live project; check flags with
+`gcloud <command> --help`. The two-host Docker VM deployment has been built and verified, including Compose, Caddy and
+nginx validation, HTTPS certificates, API CORS and browser navigation.
 
 ## Project status
 
@@ -197,7 +205,7 @@ and the Caddy configuration for the VM path were validated with `docker compose 
 | 06 · 07 | Engine and State Store | P3 | engine in Python; browser storage and SQLite | engine unchanged; Firestore | Engine **PoC**, store Planned |
 | 08 | Voice Agent | P4 | ElevenLabs | Speech-to-Text, Text-to-Speech, Translation | **PoC** |
 | 09 | Dashboard: Video, Safety Agent, Dashboard, Gemba Kaizen and Voice pages, with a mock mode | P5 | SvelteKit in [frontend/](frontend) | Cloud Run + load balancer | **Integrated** |
-| — | Hosting, CI/CD, IAM, observability | P3 | Static demo build for Firebase Hosting; full stack with Docker Compose | the Google Cloud services above | Demo build **ready**, rest planned |
+| — | Hosting, CI/CD, IAM, observability | P3 | Full stack on one VM with Docker Compose and Caddy; optional static demo | the Google Cloud services above | VM hosting **ready**, managed CI/CD and IAM planned |
 
 ## Repository layout
 
@@ -248,10 +256,12 @@ cp ai_backend/.env.example ai_backend/.env      # set the API key, and OPENROUTE
 docker compose up --build                       # http://localhost  (API docs: http://localhost/docs)
 ```
 
-The browser only talks to the frontend. Its server route [`/api/[...path]`](frontend/src/routes/api/[...path]/+server.ts)
+In local development the browser only talks to the frontend. Its server route [`/api/[...path]`](frontend/src/routes/api/[...path]/+server.ts)
 streams requests (including video uploads) to `AI_BACKEND_URL` (`http://api:8000` in Compose), so ai_backend needs no CORS
 setup and is not exposed except for its API docs. Uploads up to 550 MB and 15-minute analyses are allowed end to end.
-On Google Cloud the upload goes straight to Cloud Storage instead, because Cloud Run limits request bodies to 32 MiB.
+On the HTTPS VM deployment, `/config` supplies the public API URL, and browser calls and uploads go directly to
+`https://gemba.limitlesstech-co.com` with CORS limited to the frontend origin. In the managed Cloud Run design, uploads
+instead go straight to Cloud Storage because Cloud Run limits request bodies to 32 MiB.
 
 ### AI backend
 

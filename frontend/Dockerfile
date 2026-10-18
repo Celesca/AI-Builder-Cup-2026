@@ -1,5 +1,5 @@
 # VALZ Dashboard (SvelteKit + adapter-node).
-# The browser only talks to this server; /api/* is proxied to ai_backend (AI_BACKEND_URL).
+# AI_BACKEND_URL selects the API; a public HTTPS URL also links browser requests directly to it.
 
 FROM node:22-alpine AS build
 WORKDIR /app
@@ -7,7 +7,8 @@ RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-# App build only: the `build` script also packages src/lib as a library (svelte-package + publint)
+# Always build the full Node app, never the optional backend-free static demo.
+ENV STATIC_DEMO="" VITE_STATIC_DEMO=""
 RUN pnpm exec svelte-kit sync && pnpm exec vite build
 
 FROM node:22-alpine
@@ -18,7 +19,7 @@ ENV NODE_ENV=production \
     AI_BACKEND_URL=http://api:8000 \
     # Videos are uploaded through this server (adapter-node default limit is 512K)
     BODY_SIZE_LIMIT=600M \
-    # Behind nginx: take the public protocol / host from its headers (needed for same-origin form POSTs)
+    # Behind Caddy/nginx: take the public protocol / host from trusted proxy headers
     PROTOCOL_HEADER=x-forwarded-proto \
     HOST_HEADER=x-forwarded-host
 # Every dependency is bundled into build/ at build time; package.json only marks the output as ES modules

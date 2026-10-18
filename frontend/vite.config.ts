@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
-import adapter from '@sveltejs/adapter-vercel';
+import adapterNode from '@sveltejs/adapter-node';
 import staticAdapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 
@@ -14,10 +14,11 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			// STATIC_DEMO=1: a static single-page build (demo clips, no /api proxy) for free static hosting such as Firebase Hosting
-			adapter: process.env.STATIC_DEMO
-				? staticAdapter({ pages: 'build-static', fallback: 'index.html' })
-				: adapter()
+			// The full app runs on the VM; the cached, backend-free demo remains an opt-in build.
+			adapter:
+				process.env.STATIC_DEMO === '1'
+					? staticAdapter({ pages: 'build-static', fallback: 'index.html' })
+					: adapterNode()
 		})
 	],
 	test: {
