@@ -53,7 +53,7 @@ No rule crossed its 60 % threshold, and the app says so.
 
 ## How Google AI is used
 
-![How it works: sampling, Gemini 3.1 Flash-Lite, YOLOv8n, Python engine, knowledge cards, Gemini Kaizen cards, dashboard](images/valz-how-it-works.jpg)
+![How it works: sampling, Gemini 3.1 Flash-Lite, YOLOv8n, Python engine, knowledge cards, Gemini Kaizen cards, dashboard](images/valz-how-it-works-2.jpg)
 
 | Step | What runs | Google |
 |---|---|---|
