@@ -132,6 +132,10 @@ class Session {
 				this.result = saved.result;
 				this.status = 'done';
 			}
+		} else if (import.meta.env.VITE_STATIC_DEMO) {
+			// Static demo site (no backend): open the first real demo clip so a first visit shows the product, not an empty page
+			const clip = this.clips.find((c) => !c.synthetic);
+			if (clip) await this.selectDemo(clip);
 		}
 		void this.refreshBackend();
 	}
