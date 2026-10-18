@@ -56,7 +56,7 @@ Browser at 1920×1080, page zoom 125 % (layout 1536×864), as in the runbook.
 | Shot | Time | Dur | Objective | Page / element | Actions | On-screen result | Voiceover | Text / callout | Camera | Transition | Evidence | Risks |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 4.1 | 01:23–01:32 | 9 s | Where in time | **Rules over time** | Hover along the *Awkward arm or wrist posture* row | Orange cells at the door-fitting seconds | "The timeline shows every rule against every sampled second. The near misses sit where the operator fits parts into the door." | Bracket labelled "door fitting" | APP, 160 % on the matrix | Hard cut | Activity "working" at 18–28 s, 40–48 s | None |
-| 4.2 | 01:32–01:41 | 9 s | Jump to the moment | **Incidents** → row 00:18–00:22 → **Play** | Click **Play** | Mini player docks top-right at 00:17: operator at the door | "One click plays that exact moment." | — | APP, 2-up: row left, mini player right | Hard cut | Verified | It may open paused; press play on the mini player. Let 3 s of video play without voice |
+| 4.2 | 01:32–01:41 | 9 s | Jump to the moment | **Incidents** → row 00:18–00:22 → **Play** | Click **Play** | Mini player docks top-right at 00:17: operator at the door; from 00:18 the amber "NEAR MISS: awkward_posture 0.50" box (the clip opens with **Boxes** on) | "One click plays that exact moment." | — | APP, 2-up: row left, mini player right | Hard cut | Verified | It may open paused; press play on the mini player. Let 3 s of video play without voice |
 | 4.3 | 01:41–01:54 | 13 s | Human review | Same row | Hover thumbnail → hover "50% · 2 frames" → click **Mark reviewed** | Header "4 found · 0 high · 3 to review" (verified) | "Each one keeps a snapshot and the model's score. These are near misses, not violations, so a person reviews them. VALZ does not close anything on its own." | ① snapshot ② score | APP, 150 % on the row | Dip | Mark stored in the browser | No suggested action on these rows (they are below the 60 % the analysis used); do not mention one |
 
 ### Scene 5: Gemba Kaizen (01:54–02:44)
@@ -84,13 +84,21 @@ Browser at 1920×1080, page zoom 125 % (layout 1536×864), as in the runbook.
 | 7.1 | 03:15–03:27 | 12 s | Honest limits | `/dashboard` still, dimmed 30 % | — | Two lines appear one by one | "This is a prototype. It analyses recorded clips, not live streams yet. Gemini can mislabel what it sees, so every finding links back to the video for a person to check." | "Recorded clips, not live streams yet" · "Labels can be wrong → human review" | CARD over APP still | Cross-dissolve | Audit | — |
 | 7.2 | 03:27–03:35 | 8 s | Close | — | — | VALZ wordmark, "Observe → Understand → Improve", Team TuiDui: Ratchanon Buachum, Sawit Koseeyaumporn, Wayu Tharai. Footer "Video: CarDA dataset, CC BY 4.0" | "VALZ. Observe. Understand. Improve." | As described | CARD, cover-slide style | Fade to black | — | Keep the CarDA credit |
 
+## The boxed video
+
+The clip ships with a pre-made copy that has person boxes drawn by the backend (`ws10-car-door-2024-04-23.annotated.mp4`, from
+`POST /safety/annotate` with `gemini-3.1-flash-lite`, the 4 default rules, 0.5 fps, near-miss margin 0.15). Opening the clip shows it
+by default; the Video page's **Annotated video** panel has **Original / Boxes** and says "cached with the demo clip, drawn with the default rules".
+Only 00:18–00:20 has a box (amber, awkward posture 0.50). No red boxes. For the hook (shot 1.1) either version works, since 00:02–00:12 has no box.
+After the threshold change in shot 3.3 the panel warns that the boxes were drawn with other rules; that is expected.
+
 ## Shots that must not be recorded as working
 
 | Interaction | Why |
 |---|---|
 | **Upload** + **Analyse video** | Works locally with the Gemini key (verified through `pnpm demo:add`, same endpoint), but the dashboard uploads at 1 fps: about 62 model calls, roughly 5 minutes on the free-tier quota. Record only per the optional swap below |
 | **Voice Agent** page | UNVERIFIED — DO NOT RECORD AS FUNCTIONAL. Speech is ElevenLabs, not Google, and the chat was not tested |
-| **Draw boxes on the video** | UNVERIFIED — DO NOT RECORD AS FUNCTIONAL |
+| **Draw boxes on the video** (a new run) | Verified once from the dashboard against the local backend (4:00 at 1 fps, same 00:18 near miss), but the result is lost on page reload. Show the cached boxed copy instead |
 | **Live** tab | Simulation by design; the app says so |
 | The older clip *WS10 car door assembly (in camera, L view)* | Analysed by Qwen, and its MP4 has burned-in "VIOLATION: no_helmet" boxes. Remove it from the list before recording (runbook §2) |
 | *Assembly cell 3 (synthetic sample)* | Authored cards, not model output |

@@ -223,6 +223,7 @@ class Session {
 			file: null,
 			synthetic: Boolean(clip.synthetic)
 		};
+		if (clip.annotated) this.annotation.useCached(clip.annotated, rulesSignature(DEFAULT_RULES));
 		await this.analyze();
 	}
 

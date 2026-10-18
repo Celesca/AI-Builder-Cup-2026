@@ -53,7 +53,9 @@
 		[
 			a.annotatedFrames !== null && `${a.annotatedFrames} frames marked`,
 			a.safetyEvents !== null && `${a.safetyEvents} ${a.safetyEvents === 1 ? 'event' : 'events'}`,
-			`made in ${fmt(a.elapsed)}`
+			a.cached
+				? 'cached with the demo clip, drawn with the default rules'
+				: `made in ${fmt(a.elapsed)}`
 		]
 			.filter(Boolean)
 			.join(' · ')
@@ -181,7 +183,7 @@
 					onclick={() => session.annotate()}
 					disabled={Boolean(cannot)}><Icon name="reset" /> Draw again</button
 				>
-				<span class="muted">{mb(a.size)}</span>
+				{#if a.size}<span class="muted">{mb(a.size)}</span>{/if}
 			</div>
 		{:else}
 			{#if a.state === 'error'}

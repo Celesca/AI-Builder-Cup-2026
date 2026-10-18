@@ -29,7 +29,8 @@ The clip and its analysis are in `frontend/static/demo/`:
 |---|---|
 | `ws10-car-door-2024-04-23.mp4` | CarDA WS10, camera SN22106779, 23 Apr 2024 13:53, L view, 49.7 s, re-encoded to H.264 (CRF 23, no audio) from `WS10-SN22106779-HD720dt__23_04_2024_13_53_19_4.0m_cropped_L_view_RAW.mp4` |
 | `ws10-car-door-2024-04-23.analysis.json` | Gemini analysis, 18 Oct 2026: `gemini-3.1-flash-lite` for both agents, 0.5 fps, 4 default rules, station WS10, nominal cycle 240 s |
-| `manifest.json` | The clip is listed first |
+| `ws10-car-door-2024-04-23.annotated.mp4` | The same clip with person boxes drawn by the backend (Gemini, default rules, 0.5 fps). Shown by default when the clip opens |
+| `manifest.json` | The clip is listed first, with `"annotated"` pointing at the boxed copy |
 
 Before recording, **remove the old clip from `manifest.json`**: the entry with `"id": "xsens-004-ws10-in-l"`. Its MP4 has burned-in
 "VIOLATION: no_helmet" boxes and its analysis was made by Qwen. Removing the entry is enough; delete its two files only if the team agrees.
