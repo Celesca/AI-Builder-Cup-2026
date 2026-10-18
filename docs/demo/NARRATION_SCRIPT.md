@@ -22,7 +22,7 @@ We start with a fifty-second clip from a public car door assembly dataset. We an
 
 The timeline shows every rule against every sampled second. The near misses sit where the operator fits parts into the door. One click plays that exact moment. Each one keeps a snapshot and the model's score. These are near misses, not violations, so a person reviews them. VALZ does not close anything on its own.
 
-The Gemba Kaizen agent turns the measurements into improvement proposals. The top card is transport: twenty-six seconds of moving the cart, with both moments in the video as evidence. It recommends a water spider or a flow rack, and cites the lean practice behind it. Gemini estimates how many seconds that can remove. The hours per shift and the throughput gain are plain arithmetic in code. And where the agent is unsure, it asks the operator instead of guessing: is this move needed every cycle? The manager approves, defers, or rejects each card.
+The Gemba Kaizen agent turns the measurements into improvement proposals. The top card is transport: twenty-six seconds of moving the cart and fetching parts, with both moments in the video as evidence. It recommends a water spider or a flow rack, and cites the lean practice behind it. Gemini estimates how many seconds that can remove. The hours per shift and the throughput gain are plain arithmetic in code. And where the agent is unsure, it asks the operator instead of guessing: is this move needed every cycle? The manager approves, defers, or rejects each card.
 
 Under the hood, a SvelteKit dashboard talks to a FastAPI service. It samples one frame every two seconds. Gemini 3.1 Flash-Lite checks every rule on every frame and labels what the worker is doing, and a small YOLO model counts people. Plain code then measures the waste. Finally, Gemini writes the Kaizen cards as structured data, grounded in nineteen curated lean and ergonomics cards.
 
@@ -40,10 +40,10 @@ Speech time at about 145 words a minute; the slot adds room for clicks and pause
 | 2 | Problem | 00:21–00:39 (18 s) | 43 | 17.8 s | 0.2 s |
 | 3 | Input and rules | 00:39–01:23 (44 s) | 84 | 34.8 s | 9.2 s |
 | 4 | Near misses | 01:23–01:54 (31 s) | 55 | 22.8 s | 8.2 s |
-| 5 | Gemba Kaizen | 01:54–02:44 (50 s) | 93 | 38.5 s | 11.5 s |
+| 5 | Gemba Kaizen | 01:54–02:44 (50 s) | 96 | 39.7 s | 10.3 s |
 | 6 | How it works | 02:44–03:15 (31 s) | 64 | 26.5 s | 4.5 s |
 | 7 | Limits and close | 03:15–03:35 (20 s) | 35 | 14.5 s | 5.5 s |
-| | **Total** | **3:35** | **425** | **≈ 2:56** | **≈ 39 s** |
+| | **Total** | **3:35** | **428** | **≈ 2:57** | **≈ 38 s** |
 
 Re-count after any edit: words ÷ 2.42 = seconds at 145 words a minute.
 
@@ -77,9 +77,9 @@ Facts: incidents 00:18–00:22 (50 %, 2 frames), 00:24–00:28, 00:30–00:32, 0
 
 ### Scene 5 — Gemba Kaizen (01:54–02:44)
 
-> The Gemba Kaizen agent turns the measurements into improvement proposals. The top card is transport: twenty-six seconds of moving the cart, with both moments in the video as evidence. It recommends a water spider or a flow rack, and cites the lean practice behind it. Gemini estimates how many seconds that can remove. The hours per shift and the throughput gain are plain arithmetic in code. And where the agent is unsure, it asks the operator instead of guessing: is this move needed every cycle? The manager approves, defers, or rejects each card.
+> The Gemba Kaizen agent turns the measurements into improvement proposals. The top card is transport: twenty-six seconds of moving the cart and fetching parts, with both moments in the video as evidence. It recommends a water spider or a flow rack, and cites the lean practice behind it. Gemini estimates how many seconds that can remove. The hours per shift and the throughput gain are plain arithmetic in code. And where the agent is unsure, it asks the operator instead of guessing: is this move needed every cycle? The manager approves, defers, or rejects each card.
 
-Facts: K01 evidence 00:02–00:18 and 00:30–00:40, KC-TRN-01 (Ohno; Liker); ROI line "0.67 h per shift · +9.1% throughput · 20 s/cycle x 120 cycles/shift
+Facts: K01 evidence 00:02–00:18 (pushing the cart) and 00:30–00:40 (walking to fetch a blue parts bin and bringing it back), KC-TRN-01 (Ohno; Liker); ROI line "0.67 h per shift · +9.1% throughput · 20 s/cycle x 120 cycles/shift
 (computed from the measured times, not by the LLM)". The 20 s is Gemini's estimate (`est_seconds_saved_per_cycle`); 120 cycles comes from the nominal
 240 s cycle the team entered. The narration does not read these numbers aloud.
 
@@ -121,7 +121,7 @@ Confirm the first two with the team; nothing in the repository says how they are
 2. Most factories **already** have cameras. / But the footage is usually reviewed only **after** something goes wrong. // Wasted motion and strain are rarely written down, / because no one has time to watch **every** cycle. // VALZ is built for that gap. // *Existing cameras.* / *Actionable intelligence.*
 3. We start with a fifty-second clip / from a public car door assembly dataset. / We analysed it earlier with **Gemini**, / and the app **says so**: / cached, / no model called now. // Safety rules are written in **plain English**. / For every sampled frame, / Gemini scores each rule / from zero to one hundred. // Here, **no** rule crossed its threshold, / and VALZ says that **plainly**. // A safety lead can tune the policy. / Lower awkward posture to **forty** percent, `[click]` / and **four** near misses appear, / straight from the scores already stored.
 4. The timeline shows every rule / against every sampled second. / The near misses sit where the operator **fits parts** into the door. // One click `[click]` / plays that **exact** moment. // Each one keeps a **snapshot** / and the model's score. // These are near misses, / **not** violations, / so a **person** reviews them. `[click]` / VALZ does not close anything on its own.
-5. The Gemba Kaizen agent turns the measurements into **improvement proposals**. // The top card is **transport**: / twenty-six seconds of moving the cart, / with **both** moments in the video as evidence. / It recommends a water spider or a flow rack, / and **cites** the lean practice behind it. // Gemini **estimates** how many seconds that can remove. / The hours per shift and the throughput gain / are **plain arithmetic** in code. // And where the agent is **unsure**, / it **asks** the operator / instead of guessing: / is this move needed every cycle? // The manager approves, `[click]` / defers, / or rejects each card.
+5. The Gemba Kaizen agent turns the measurements into **improvement proposals**. // The top card is **transport**: / twenty-six seconds of moving the cart and fetching parts, / with **both** moments in the video as evidence. / It recommends a water spider or a flow rack, / and **cites** the lean practice behind it. // Gemini **estimates** how many seconds that can remove. / The hours per shift and the throughput gain / are **plain arithmetic** in code. // And where the agent is **unsure**, / it **asks** the operator / instead of guessing: / is this move needed every cycle? // The manager approves, `[click]` / defers, / or rejects each card.
 6. Under the hood, / a SvelteKit dashboard talks to a FastAPI service. / It samples one frame every **two seconds**. / **Gemini** 3.1 Flash-Lite checks every rule on every frame / and labels what the worker is doing, / and a small YOLO model counts people. // **Plain code** then measures the waste. // Finally, / Gemini writes the Kaizen cards as structured data, / grounded in nineteen curated lean and ergonomics cards.
 7. This is a **prototype**. / It analyses recorded clips, / not live streams yet. / Gemini can **mislabel** what it sees, / so every finding links back to the video / for a person to check. // VALZ. // Observe. / Understand. / Improve.
 
@@ -133,10 +133,10 @@ Confirm the first two with the team; nothing in the repository says how they are
 | 00:21–00:39 | 17.8 s | Motion graphic, tagline card | Yes |
 | 00:39–01:23 | 34.8 s | Open clip (2 s), cut to Safety (1 s), hold on "No rule reached…" (2 s), drag slider (2 s), count change (1 s) | Yes, 9 s spare |
 | 01:23–01:54 | 22.8 s | Matrix zoom (3 s), Play (1 s) + 3 s of video, Mark reviewed (1 s) | Yes, 8 s spare |
-| 01:54–02:44 | 38.5 s | Tab click (1 s), two evidence chips (2 s), ROI line zoom (2 s), question (2 s), Approve ×2 (2 s) | Yes, 11 s spare |
+| 01:54–02:44 | 39.7 s | Tab click (1 s), two evidence chips (2 s), ROI line zoom (2 s), question (2 s), Approve ×2 (2 s) | Yes, 10 s spare |
 | 02:44–03:15 | 26.5 s | Diagram builds per sentence | Yes |
 | 03:15–03:35 | 14.5 s | End card, 4 s silent hold | Yes |
-| **Total** | **≈ 2:56** | **≈ 39 s non-speech** | **3:35** |
+| **Total** | **≈ 2:57** | **≈ 38 s non-speech** | **3:35** |
 
 If the human read runs long, cut in this order: scene 2 "VALZ is built for that gap." (−1.5 s); scene 4 "One click plays that exact
 moment." (−2 s, keep the click); scene 6 ", and a small YOLO model counts people" (−2 s).

@@ -101,6 +101,13 @@ Models recorded in the cached analyses:
 | `xsens-004-ws10-in-l` (16 Oct, retire) | Safety Agent | `qwen/qwen3.7-flash` | OpenRouter | 62 calls, about $0.002 |
 | | Gemba Kaizen Agent | `google/gemini-3.1-flash-lite` | OpenRouter | about $0.002 |
 
+Frame check (all 25 sampled moments of the boxed video, 18 Oct): no rule violation anywhere, so no false red box. The one near miss
+(awkward posture 0.50 at 00:18) is the operator reaching into the door frame, which is plausible. Activity labels: about 20 of 25 match
+what is visible. Wrong type of waste at 00:34 (walking empty-handed, labelled carrying) and 00:36 (standing at the table, labelled
+carrying); 00:16 is labelled carrying while the operator already works at the door; 00:30 (holding a part at the door) is borderline.
+The 00:30–00:40 trip is real: he walks to a table and comes back with a blue parts bin, which is what K01's water spider suggestion is about.
+The waste total is right; only the split between transport and motion waste is off by a few seconds.
+
 What Gemini found on the new clip: no rule above 60 % (highest: awkward posture 50 % at 00:18). Activity 22 s value-adding,
 26 s transport (pushing the cart), 2 s walking. Cards: K01 *Implement material delivery system* (water spider or flow rack, KC-TRN-01,
 Gemini's estimate 20 s/cycle → 0.67 h/shift, +9.1 % in code), K02 *Optimize workstation layout* (0.03 h/shift). One operator question at 00:30.
