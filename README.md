@@ -1,14 +1,69 @@
-# VALZ
+<p align="center">
+  <img src="images/valz-banner.png" alt="VALZ: Observe, Understand, Improve. Vision-Language Model for Smart Manufacturing" width="100%">
+</p>
 
-**From factory-floor video to an approved Gemba Kaizen action, on Google Cloud.**
+<h1 align="center">VALZ</h1>
 
-VALZ watches a short workstation clip, finds the waste (*Muda*) in each work cycle, and turns it into
-Gemba Kaizen Action Cards with an ROI estimate. When it is not sure what it saw, it does not guess. A bilingual voice agent
-asks the operator on the line, in Thai and hands-free, and the plant manager reviews and approves the result in Japanese or English.
+<p align="center"><b>Existing cameras. Actionable intelligence.</b></p>
+
+<p align="center">
+  <img alt="Google Cloud AI Builder Cup 2026" src="https://img.shields.io/badge/Google%20Cloud-AI%20Builder%20Cup%202026-4285F4?logo=googlecloud&logoColor=white">
+  <img alt="Category: Manufacturing" src="https://img.shields.io/badge/Category-Manufacturing-34A853">
+  <img alt="Gemini 3.1 Flash-Lite" src="https://img.shields.io/badge/Gemini-3.1%20Flash--Lite-8E75B2?logo=googlegemini&logoColor=white">
+  <br>
+  <img alt="SvelteKit" src="https://img.shields.io/badge/SvelteKit-3-FF3E00?logo=svelte&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white">
+  <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white">
+  <img alt="YOLOv8" src="https://img.shields.io/badge/YOLOv8-person%20detection-111F68">
+  <img alt="Team TuiDui" src="https://img.shields.io/badge/Team-TuiDui-EA4335">
+</p>
+
+VALZ turns ordinary factory camera footage into observations a supervisor can check and improvement proposals a team can act on.
+A **Safety Agent** scores every sampled frame against safety rules written in plain English, and a **Gemba Kaizen Agent** measures
+where the time went and writes Kaizen cards with evidence and an ROI estimate. Both run on **Gemini**. When the agent is not sure what
+it saw, it does not guess: it writes a question for the operator.
 
 > *The system says what it doesn't know, then asks the person who does.*
 
-Built for the U-Hackathon AI track.
+Team **TuiDui** · Google Cloud **AI Builder Cup 2026** · Manufacturing: Intelligent Operations & Industrial Efficiency
+
+![VALZ Safety Agent: rules over time and four near misses on a real car-door assembly clip](images/valz-safety.jpg)
+
+## What it does
+
+| | |
+|---|---|
+| ![Person boxes with Gemini's activity label: carrying, transport waste](images/valz-boxes.jpg) | ![Amber near miss: awkward arm or wrist posture at 00:18](images/valz-near-miss.jpg) |
+| **Observe.** YOLO finds each person; Gemini labels what they are doing, frame by frame (blue: waste, green: value-adding). | **Understand.** Gemini scores each plain-English safety rule from 0 to 100. Near misses are amber and go to a person for review. |
+
+![Gemba Kaizen cards with evidence timestamps, ROI computed in Python and a question for the operator](images/valz-gemba-kaizen.jpg)
+
+**Improve.** The Gemba Kaizen Agent turns the measured waste into cards: what was seen, likely root cause, recommendation, the exact
+moments in the video, and the lean reference it relied on. Gemini estimates the seconds saved; Python turns that into hours per shift
+and throughput. The manager approves, defers or rejects each card.
+
+On the bundled clip (CarDA dataset, workstation WS10, 50 s), VALZ found **26 s of transport waste** (moving the cart and fetching
+parts, 52 % of the clip), proposed a **water spider or flow rack**, and flagged **four awkward-posture near misses** during door fitting.
+No rule crossed its 60 % threshold, and the app says so.
+
+| Video | Dashboard |
+|---|---|
+| ![Video page: cached Gemini analysis, boxed video, AI backend online with Gemini models](images/valz-video.jpg) | ![Dashboard: value-adding share and where the time went](images/valz-dashboard.jpg) |
+
+## How Google AI is used
+
+![How it works: sampling, Gemini 3.1 Flash-Lite, YOLOv8n, Python engine, knowledge cards, Gemini Kaizen cards, dashboard](images/valz-how-it-works-2.jpg)
+
+| Step | What runs | Google |
+|---|---|---|
+| Rule scoring and activity labels | One request per sampled frame (0.5–1 fps), structured JSON output | **Gemini 3.1 Flash-Lite** via the **Gemini API** (Google AI Studio) |
+| Kaizen cards, safety actions, operator questions | Strict JSON schema, grounded in 19 curated lean and ergonomics cards | **Gemini 3.1 Flash-Lite** via the **Gemini API** |
+| Waste seconds, per-shift projection, ROI | Plain Python: times come from frame timestamps, never from the model | — |
+| Person boxes and people count | YOLOv8n, local | — |
+| Dashboard | SvelteKit Node server on the VM, cached demo clips and live API | Optional static demo build for **Firebase Hosting** |
+
+The backend talks to any OpenAI-compatible endpoint, so the Gemini API is a setting, not a code path: see
+[ai_backend/.env.example](ai_backend/.env.example) (`OPENROUTER_URL`, `VLM_MODEL`, `LSS_LLM_MODEL`, `LLM_MIN_INTERVAL_S` for the free tier).
 
 ## System architecture
 
@@ -19,10 +74,10 @@ team delegation, shared data contracts and the 24-hour build plan, is in
 [docs/system_architecture.html](docs/system_architecture.html). There are two ways to deploy it, from a single VM with Firebase
 to the fully managed design; see [Deploy on Google Cloud](#deploy-on-google-cloud).
 
-> **Status.** The architecture above is the target. The code in this repository still calls OpenRouter and ElevenLabs and runs
-> BLIP and YOLO itself; [What changes in the code](docs/system_architecture.html#code-changes) lists each swap, and
-> [Project status](#project-status) says what exists today. The dashboard, the Safety Agent, the Gemba Kaizen Agent and the
-> Voice Agent work now, locally with Docker Compose or on one VM (see below).
+> **Status.** The diagram is the target architecture. Today both agents run on Gemini 3.1 Flash-Lite through the Gemini API, the
+> dashboard and backend run together on one VM with Docker Compose and Caddy HTTPS (no Vercel dependency). A separate static demo build remains optional. Vertex AI, Workflows, Eventarc,
+> Firestore, Pub/Sub and BigQuery are planned, not built. The Voice Agent still uses ElevenLabs. [Project status](#project-status) lists
+> each piece.
 
 ### How a clip moves through Google Cloud
 
@@ -57,6 +112,20 @@ to the fully managed design; see [Deploy on Google Cloud](#deploy-on-google-clou
 
 Segment classes are `VA`, `NVA_MOTION`, `NVA_TRANSPORT`, `NVA_WAITING`, `NVA_SEARCH`, `SAFETY_ERGO`, `SOP_DEVIATION` and `UNCERTAIN`.
 A segment's status moves from `auto` to `needs_verification` to `verified`. The engine, not the model, computes the numbers.
+
+## Optional: deploy only the cached demo (free)
+
+**The full application is deployed on the VM**; see [the VM guide](docs/DEPLOYMENT_VM.md). Vercel is not required.
+The dashboard can also be built as a static single-page app that opens the bundled demo clips with no backend, for example on
+**Firebase Hosting** on the free Spark plan (no billing account):
+
+```bash
+cd frontend
+pnpm run build:static            # STATIC_DEMO=1 → build-static/ (adapter-static, SPA fallback)
+firebase deploy --only hosting   # project in .firebaserc, config in firebase.json
+```
+
+Uploads, re-runs and the Voice Agent need the backend, so they report it as offline in this build.
 
 ## Deploy on Google Cloud
 
@@ -128,15 +197,15 @@ nginx validation, HTTPS certificates, API CORS and browser navigation.
 |---|---|---|---|---|---|
 | 00 | Workstation clips (before / after) | P5 | — | Cloud Storage `static` and `raw-clips` | Planned |
 | 01 | Frame sampling and people counting | P1 | OpenCV, YOLOv8 in [ai_backend/](ai_backend) | Cloud Run job + Video Intelligence API | **Built** locally |
-| 02 | Per-frame action detection | P1 | BLIP + MiniLM, or an OpenRouter VLM | Gemini on Vertex AI | **Built** locally |
-| 01 · 03 | Safety Agent: safety rules and Muda timeline | P1 | OpenRouter VLM | Gemini on Vertex AI | **PoC** |
-| 04 · 06 | Gemba Kaizen Agent: engine metrics, knowledge cards, ROI | P1 | OpenRouter LLM, `knowledge/lss_cards.json` | Gemini + Vertex AI RAG Engine | **PoC** |
+| 02 | Per-frame action detection | P1 | Gemini 3.1 Flash-Lite (Gemini API); BLIP + MiniLM fallback | Gemini on Vertex AI | **Built** |
+| 01 · 03 | Safety Agent: safety rules and Muda timeline | P1 | Gemini 3.1 Flash-Lite (Gemini API) | Gemini on Vertex AI | **PoC**, verified live |
+| 04 · 06 | Gemba Kaizen Agent: engine metrics, knowledge cards, ROI | P1 | Gemini 3.1 Flash-Lite (Gemini API), `knowledge/lss_cards.json` | Gemini + Vertex AI RAG Engine | **PoC**, verified live |
 | 03 · 04 | SOP and Muda prompt pack | P2 | — | RAG Engine corpus | Planned |
 | 05 | Orchestrator | P3 | in-process | Eventarc + Workflows | Planned |
 | 06 · 07 | Engine and State Store | P3 | engine in Python; browser storage and SQLite | engine unchanged; Firestore | Engine **PoC**, store Planned |
 | 08 | Voice Agent | P4 | ElevenLabs | Speech-to-Text, Text-to-Speech, Translation | **PoC** |
 | 09 | Dashboard: Video, Safety Agent, Dashboard, Gemba Kaizen and Voice pages, with a mock mode | P5 | SvelteKit in [frontend/](frontend) | Cloud Run + load balancer | **Integrated** |
-| — | Hosting, CI/CD, IAM, observability | P3 | Docker Compose on one VM | the Google Cloud services above | Planned |
+| — | Hosting, CI/CD, IAM, observability | P3 | Full stack on one VM with Docker Compose and Caddy; optional static demo | the Google Cloud services above | VM hosting **ready**, managed CI/CD and IAM planned |
 
 ## Repository layout
 
@@ -174,7 +243,8 @@ nginx validation, HTTPS certificates, API CORS and browser navigation.
 
 ## Run it locally
 
-Local development does not need a Google Cloud project. It runs the code as it exists today, on OpenRouter and ElevenLabs.
+Local development does not need a Google Cloud project. Point the backend at the Gemini API with a Google AI Studio key (or at OpenRouter);
+the Voice Agent's speech uses ElevenLabs.
 
 ```
 browser ──► nginx :80 ──► frontend (SvelteKit, :3000) ──► /api/* proxy ──► ai_backend (FastAPI, :8000) ──► OpenRouter
@@ -182,7 +252,7 @@ browser ──► nginx :80 ──► frontend (SvelteKit, :3000) ──► /api
 ```
 
 ```bash
-cp ai_backend/.env.example ai_backend/.env      # set OPENROUTER_API_KEY
+cp ai_backend/.env.example ai_backend/.env      # set the API key, and OPENROUTER_URL + Gemini model ids for the Gemini API
 docker compose up --build                       # http://localhost  (API docs: http://localhost/docs)
 ```
 
@@ -241,6 +311,10 @@ The repository has no CI workflow yet; run the checks above and `pytest` in `ai_
 
 ## Team
 
+**TuiDui**: Ratchanon Buachum (team leader), Sawit Koseeyaumporn, Wayu Tharai.
+
+Planned ownership on the target architecture:
+
 | Owner | Role | Google Cloud services |
 |---|---|---|
 | P1 | Vision pipeline engineer | Cloud Storage ingest · Transcoder API · Cloud Run job · Video Intelligence API |
@@ -248,3 +322,8 @@ The repository has no CI workflow yet; run the checks above and `pytest` in `ai_
 | P3 | Backend, orchestration, platform | Cloud Run `valz-api` · Workflows · Eventarc · Firestore · Pub/Sub · BigQuery · IAM · Cloud Build |
 | P4 | Voice agent engineer | Speech-to-Text · Text-to-Speech · Translation |
 | P5 | Dashboard, edge, demo and pitch | Cloud Run `valz-frontend` · load balancer · Cloud CDN · Cloud Armor · IAP · Looker Studio |
+
+## Credits
+
+Demo footage: CarDA (Car Door Assembly dataset), workstation WS10, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); credit the CarDA authors when sharing.
+Lean and ergonomics references are listed with each card in [ai_backend/knowledge/lss_cards.json](ai_backend/knowledge/lss_cards.json).

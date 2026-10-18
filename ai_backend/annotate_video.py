@@ -1,6 +1,7 @@
 """
 Render an annotated copy of a video: person boxes (YOLO) labelled with the safety rule when a rule passed its
-threshold (red, VIOLATION) or came within `near_miss_margin` of it (amber, NEAR MISS).
+threshold (red, VIOLATION) or came within `near_miss_margin` of it (amber, NEAR MISS). Without a rule hit, the box
+carries the VLM's activity label instead (green value-adding, blue waste, grey unclear), so every person is boxed.
 
 The VLM scores whole frames, not people, so a rule hit is drawn on every detected person in that frame.
 VLM observations are sparse (about 1 FPS): each one is held until the next. YOLO runs every few frames and is held too.
@@ -20,6 +21,15 @@ logger = logging.getLogger(__name__)
 
 RED = (0, 0, 230)      # BGR
 AMBER = (0, 165, 255)
+GREEN = (60, 170, 60)
+BLUE = (200, 110, 30)
+GREY = (140, 140, 140)
+# Short Muda names for the activity label (Hershey fonts are ASCII only)
+CATEGORY_SHORT = {
+    'VA': 'value-adding', 'NNVA': 'necessary, no value', 'NVA_MOTION': 'motion waste',
+    'NVA_TRANSPORT': 'transport waste', 'NVA_WAITING': 'waiting waste', 'NVA_SEARCH': 'searching waste',
+    'UNCERTAIN': 'unclear',
+}
 BOX_FPS = 5.0          # YOLO runs this many times per second of video
 
 
@@ -38,6 +48,29 @@ def active_rules(rule_confidences: Dict[str, float], rules: List[Dict], margin: 
 def _label(hit: Tuple[str, str, float]) -> str:
     rule_id, kind, conf = hit
     return f"{kind}: {rule_id} {conf:.2f}"
+
+
+def activity_tag(observation: Dict) -> Optional[Tuple[str, Tuple[int, int, int]]]:
+    """(label, colour) for a sampled frame's activity, or None when there is nobody to label."""
+    category = observation.get('category')
+    if category not in CATEGORY_SHORT:
+        return None
+    color = GREEN if category == 'VA' else GREY if category == 'UNCERTAIN' else BLUE
+    return f"{observation.get('activity', '')} - {CATEGORY_SHORT[category]}", color
+
+
+def draw_activity(frame: np.ndarray, boxes: List[Tuple[int, int, int, int]], tag: Tuple[str, Tuple[int, int, int]]) -> None:
+    """A thin box with the activity label on each person. Draw in place on a BGR frame."""
+    text, color = tag
+    scale = max(0.5, frame.shape[1] / 1280)
+    thick = max(1, int(round(2 * scale)))
+    for x1, y1, x2, y2 in boxes:
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, thick)
+        (tw, th), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.55 * scale, thick)
+        top = y1 - th - base - 4 if y1 - th - base - 4 >= 0 else y1
+        cv2.rectangle(frame, (x1, top), (x1 + tw + 6, top + th + base + 4), color, -1)
+        cv2.putText(frame, text, (x1 + 3, top + th + 1), cv2.FONT_HERSHEY_SIMPLEX, 0.55 * scale,
+                    (255, 255, 255), thick, cv2.LINE_AA)
 
 
 def draw_hits(frame: np.ndarray, boxes: List[Tuple[int, int, int, int]], hits: List[Tuple[str, str, float]]) -> None:
@@ -91,7 +124,7 @@ def render_annotated_video(video_path: str, out_path: str, safety_result: Dict, 
     writer = cv2.VideoWriter(raw_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
     step = max(1, int(round(fps / BOX_FPS)))
     boxes: List[Tuple[int, int, int, int]] = []
-    annotated_frames = frame_idx = 0
+    annotated_frames = labelled_frames = frame_idx = 0
     try:
         while True:
             ok, frame = cap.read()
@@ -99,11 +132,16 @@ def render_annotated_video(video_path: str, out_path: str, safety_result: Dict, 
                 break
             i = bisect.bisect_right(times, frame_idx / fps) - 1
             hits = active_rules(timeline[i]['rule_confidences'], rules, near_miss_margin) if i >= 0 else []
-            if hits:
+            tag = activity_tag(timeline[i]) if i >= 0 else None
+            if hits or tag:
                 if frame_idx % step == 0 or not boxes:
                     boxes = detect_person_boxes(counter, frame, person_confidence) if counter else []
-                draw_hits(frame, boxes, hits)
-                annotated_frames += 1
+                if hits:
+                    draw_hits(frame, boxes, hits)
+                    annotated_frames += 1
+                elif boxes:
+                    draw_activity(frame, boxes, tag)
+                    labelled_frames += 1
             else:
                 boxes = []
             writer.write(frame)
@@ -120,4 +158,4 @@ def render_annotated_video(video_path: str, out_path: str, safety_result: Dict, 
     except ConversionError as e:
         logger.warning(f"Annotated video left as mp4v ({e})")
         os.replace(raw_path, out_path)
-    return {'frames': frame_idx, 'annotated_frames': annotated_frames}
+    return {'frames': frame_idx, 'annotated_frames': annotated_frames, 'labelled_frames': labelled_frames}

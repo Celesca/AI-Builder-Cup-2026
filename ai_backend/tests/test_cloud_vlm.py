@@ -128,6 +128,7 @@ def test_vision_calls_turn_reasoning_off_and_retry_without_it_when_refused(vlm, 
                                                                               {'id': 'running', 'confidence': 5}]})
 
     monkeypatch.setattr(openrouter_client.requests, "post", fake_post)
+    monkeypatch.setattr(openrouter_client, "OPENROUTER_URL", "https://openrouter.ai/api/v1/chat/completions")
     [result] = vlm.analyze_frames([frame(10)], RULES, ACTIVITY_QUESTION, OPTIONS)
     assert bodies[0]['reasoning'] == {'enabled': False} and 'reasoning' not in bodies[1]
     assert result['rule_confidences'] == {'no_helmet': 0.1, 'running': 0.05}

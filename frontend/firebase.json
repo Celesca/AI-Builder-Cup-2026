@@ -1,0 +1,17 @@
+{
+	"hosting": {
+		"public": "build-static",
+		"ignore": ["firebase.json", "**/.*", "**/*_RAW.mp4", "demo/xsens-004-ws10-in-l.*"],
+		"rewrites": [{ "source": "**", "destination": "/index.html" }],
+		"headers": [
+			{
+				"source": "/_app/immutable/**",
+				"headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+			},
+			{
+				"source": "/demo/**",
+				"headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+			}
+		]
+	}
+}

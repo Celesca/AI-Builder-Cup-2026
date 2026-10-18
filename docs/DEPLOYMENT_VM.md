@@ -57,6 +57,7 @@ Compose stack; **do not run nginx and Caddy on port 80 at the same time**.
 On this VM the checkout is `/home/celescadev/AI-Builder-Cup-2026`. Its untracked `.env` contains:
 
 ```dotenv
+COMPOSE_PROJECT_NAME=ai_backend
 DOMAIN=valz.limitlesstech-co.com
 API_DOMAIN=gemba.limitlesstech-co.com
 ```
@@ -70,6 +71,13 @@ sudo docker compose -f docker-compose.yml -f docker-compose.https.yml logs --tai
 
 For a fresh VM, copy `.env.example` to `.env`, copy `ai_backend/.env.example` to `ai_backend/.env`, configure model keys,
 then start the same Compose command.
+
+Keep `COMPOSE_PROJECT_NAME` unchanged on an existing VM: it identifies the running stack and its named volumes
+(including certificates and the voice cache). `.env.example` uses this VM's existing `ai_backend` project name.
+Changing it can create a second stack that conflicts on ports 80/443 and uses empty volumes.
+
+Normal frontend builds use **adapter-node**, with no Vercel dependency. The optional `pnpm run build:static` still builds
+the backend-free demo from `main`; it is not used by Docker or the VM.
 
 The override sets the frontend's `AI_BACKEND_URL=https://gemba.limitlesstech-co.com` and its public `ORIGIN`. The existing
 `/config` endpoint supplies the API address to the browser, so status, analysis, voice and video uploads use the HTTPS API
@@ -182,7 +190,8 @@ tar --exclude=node_modules --exclude=.git --exclude=.venv --exclude=.svelte-kit 
 ```bash
 gcloud compute ssh valz-vm --zone=$ZONE
 cd ~/valz
-printf 'DOMAIN=%s\nAPI_DOMAIN=%s\n' "$DOMAIN" "$API_DOMAIN" > .env  # read by docker compose
+cp .env.example .env                                   # fresh install only; keep existing VM .env files
+nano .env                                             # set DOMAIN and API_DOMAIN here; local exports do not cross SSH
 cp ai_backend/.env.example ai_backend/.env
 nano ai_backend/.env                                    # OPENROUTER_API_KEY, optional ELEVENLABS_API_KEY
 chmod 600 ai_backend/.env .env
@@ -226,9 +235,25 @@ The dashboard reads `/config` and calls the public API host directly (CORS permi
 
 ## A8. Operate
 
+For this checkout, after the `new_deploy` MR is merged, update the existing VM without replacing its `.env` files:
+
 ```bash
-# Deploy a new version: send the code again (A4), then
-cd ~/valz && docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
+cd /home/celescadev/AI-Builder-Cup-2026
+git switch main
+git pull --ff-only origin main
+sudo docker compose -f docker-compose.yml -f docker-compose.https.yml config --quiet
+sudo docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build --wait --wait-timeout 180
+sudo docker compose -f docker-compose.yml -f docker-compose.https.yml ps
+curl -fsS https://valz.limitlesstech-co.com/config
+curl -fsS https://gemba.limitlesstech-co.com/health
+```
+
+For a fresh clone at `~/valz`, use that path instead. Do not run `docker compose down -v`: that deletes persisted data.
+An update briefly interrupts requests while containers are replaced; finish active analyses first.
+
+```bash
+# Deploy a new version after copying code (A4), then
+cd ~/valz && docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build --wait
 
 # Logs and health
 docker compose -f docker-compose.yml -f docker-compose.https.yml logs -f --tail=100 api

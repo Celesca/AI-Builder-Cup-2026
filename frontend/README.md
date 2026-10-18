@@ -7,8 +7,8 @@ shows what the agents found. Design context: [../PRODUCT.md](../PRODUCT.md) and 
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Video** `/video`         | Loads a clip: bundled **demo clips** (cached analysis, no API key), **upload** (analysed by the backend), or **live** (an explained simulation: the demo clip replayed as if findings arrived live; real stream ingest is not built in the backend yet). Sets the station's cycle and takt time, and runs the analysis.                                                                                                   |
 | **Safety Agent** `/safety` | Reviews incidents (thumbnail, moment, confidence, suggested action, mark reviewed) and **edits the rules**: prompt, severity, threshold, on/off, add or remove. Thresholds, severity and on/off re-derive the incidents instantly from the per-frame confidences; a changed prompt needs a re-run (live backend only). The _Rules over time_ matrix shows each rule against each sampled second, with keyboard scrubbing. |
-| **Dashboard** `/dashboard` | The shift in one screen: value-adding share, waste per shift, incidents, people, cycle vs takt, the shift grid (one cell per second, one row per minute, takt cell marked), where the time went, and the top Gemba Kaizen actions.                                                                                                                                                                                      |
-| **Gemba Kaizen** `/lss`  | The Gemba Kaizen Agent's cards: observation, root cause, recommendation, ROI computed from the measured times, evidence moments, the knowledge cards each suggestion is based on. Approve, defer or reject each; questions to ask the operator; safety actions.                                                                                                                                                         |
+| **Dashboard** `/dashboard` | The shift in one screen: value-adding share, waste per shift, incidents, people, cycle vs takt, the shift grid (one cell per second, one row per minute, takt cell marked), where the time went, and the top Gemba Kaizen actions.                                                                                                                                                                                        |
+| **Gemba Kaizen** `/lss`    | The Gemba Kaizen Agent's cards: observation, root cause, recommendation, ROI computed from the measured times, evidence moments, the knowledge cards each suggestion is based on. Approve, defer or reject each; questions to ask the operator; safety actions.                                                                                                                                                           |
 | **Voice Agent** `/voice`   | A chatbot over the analysis: type or speak a question, the answer is read aloud (ElevenLabs, with the browser's voice as a fallback). Answers come from the analysis and the lean knowledge cards (RAG in the backend); times in answers jump the video. Speech is saved in a database so a repeated sentence is not paid for twice. The chat lasts for the browser tab.                                                  |
 
 If the browser cannot play an uploaded file (H.265, MPEG-4, AVI ...), the player offers **Make a preview I can play**: the backend re-encodes it to H.264 with ffmpeg (`POST /video/preview`). The analysis always uses the original.
@@ -21,11 +21,17 @@ Rules, review marks and decisions are kept on this device (localStorage); the la
 `static/demo/manifest.json` lists the demo clips. Each is a video plus a cached analysis in the exact shape of
 `ai_backend`'s `POST /analysis/analyze/upload` response, so it opens instantly with no backend and no key.
 
-- Bundled: **`xsens-004-ws10-in-l`**, a 50 s crop of a real car door assembly (CarDA dataset, workstation WS10, `in` camera, left view,
-  recording `xsens_004_WS10_2023_10_03`). It was analysed once on the live backend (4 ergonomic rules from `default-rules.json`,
-  station WS10, nominal cycle 240 s, no takt time) and is cached. Only the video is used; the dataset's Xsens motion capture and depth data are not.
-  The full dataset recordings are `.svo` (ZED); the clip was converted to H.264 mp4.
-  CarDA (Car Door Assembly dataset) is licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); credit the CarDA authors when sharing.
+- Bundled: **`ws10-car-door-2024-04-23`**, 50 s of a real car door assembly (CarDA dataset, workstation WS10, camera SN22106779,
+  left view, 23 Apr 2024 13:53). It was analysed once on the live backend with `gemini-3.1-flash-lite` for both agents
+  (4 ergonomic rules from `default-rules.json`, 0.5 fps, station WS10, nominal cycle 240 s, no takt time) and is cached.
+  The clip was re-encoded to H.264 mp4. CarDA (Car Door Assembly dataset) is licensed
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); credit the CarDA authors when sharing.
+  It also ships `ws10-car-door-2024-04-23.annotated.mp4`, the same clip with person boxes drawn by the backend: each person carries the activity label (green
+  value-adding, blue waste) and rule hits turn the box amber or red. A clip's optional
+  `annotated` field in `manifest.json` points at such a copy; the clip then opens with **Boxes** on and the **Original / Boxes** switch
+  works with no backend.
+- Retired: `xsens-004-ws10-in-l` (files still in `static/demo/`, not listed). Its video has boxes from an older annotated run burned in,
+  and its analysis used `qwen/qwen3.7-flash`.
 - Also bundled: a **synthetic** animated workstation clip (`cell3-synthetic`), clearly labelled in the video and the UI. Regenerate it with
   `ai_backend/.venv/bin/python frontend/scripts/make-synthetic-demo.py`. The scenario is scripted; segments, incidents, metrics, ROI
   and knowledge-card retrieval are computed with the backend's own functions, and the Gemba Kaizen texts are authored.
@@ -36,7 +42,8 @@ Rules, review marks and decisions are kept on this device (localStorage); the la
   ```
 
   It copies the video into `static/demo/`, analyses it with the default rules, saves `<id>.analysis.json` and registers the clip.
-  Options: `--station`, `--language en|th|ja`, `--rules rules.json`, `--backend http://localhost:8000`, `--id`.
+  Options: `--station`, `--language en|th|ja`, `--rules rules.json`, `--backend http://localhost:8000`, `--id`,
+  `--sample-fps 0.5` (fewer frames, fewer model requests; default 1).
   Browsers play H.264 `.mp4` or `.webm` best (`ffmpeg -i in.mov -c:v libx264 -pix_fmt yuv420p out.mp4`).
 
 ## How it talks to ai_backend
@@ -74,6 +81,7 @@ pnpm run dev                       # http://localhost:5173 (run ai_backend on :8
 | `pnpm run test:unit --run`          | Vitest: incident derivation (checked against the backend's own incidents), backend client, session |
 | `pnpm exec playwright test`         | End-to-end: the whole demo flow with the cached clip (no backend, no key)                          |
 | `pnpm run build`                    | Production build (`build/`, run with `node build`)                                                 |
+| `pnpm run build:static`             | Static demo build (`build-static/`) for Firebase Hosting: `firebase deploy --only hosting`         |
 
 SvelteKit 3 notes: import from `#lib/...` with the file extension (for example `#lib/analysis.ts`), since `$lib` was removed;
 environment variables come from `$app/env/private` / `$app/env/public`; `browser` is in `$app/env`.
@@ -89,4 +97,5 @@ Use the root [docker-compose.yml](../docker-compose.yml) to run nginx, this app 
 For this VM, add `-f docker-compose.https.yml`: Caddy serves the frontend at `https://valz.limitlesstech-co.com` and the API
 at `https://gemba.limitlesstech-co.com`. The override sets `AI_BACKEND_URL` to that HTTPS API address; `/config` exposes it
 for browser requests, and the API allows the frontend's CORS origin. See [the VM guide](../docs/DEPLOYMENT_VM.md).
-The Vite configuration selects adapter-node for local/Docker builds and adapter-vercel only when `VERCEL` is set.
+The Vite configuration always selects adapter-node for normal builds; there is no Vercel dependency.
+Only `pnpm run build:static` selects adapter-static for the optional cached demo. Docker always builds the full Node app.

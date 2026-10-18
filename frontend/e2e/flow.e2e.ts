@@ -15,21 +15,23 @@ test('open the demo clip, review incidents, read the summary, decide on Gemba Ka
 	await page.getByRole('button', { name: 'Open' }).first().click();
 	await expect(page.getByText('Cached analysis loaded. No model was called.')).toBeVisible();
 
-	// Safety Agent: incidents come from the rules; a raised threshold removes the one-frame false alarm
+	// The Gemini clip has no violations at 60%. Lowering the wrist rule exposes its near misses.
 	await nav(page, 'Safety').click();
 	await expect(page.getByRole('heading', { name: 'Incidents' })).toBeVisible();
-	await expect(page.getByText('11 found')).toBeVisible();
-	const overhead = page.getByLabel('Threshold', { exact: false }).nth(2);
-	await overhead.focus();
-	for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
-	await expect(page.getByText('10 found')).toBeVisible();
+	await expect(page.getByText('0 found')).toBeVisible();
+	const wrist = page.getByRole('listitem').filter({
+		has: page.getByRole('checkbox', { name: 'Rule Awkward arm or wrist posture is on' })
+	});
+	await wrist.getByRole('slider').focus();
+	for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowLeft');
+	await expect(page.getByText('4 found')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Mark reviewed' }).first().click();
-	await expect(page.getByText('9 to review')).toBeVisible();
+	await expect(page.getByText('3 to review')).toBeVisible();
 
 	// Dashboard
 	await nav(page, 'Dashboard').click();
-	await expect(page.getByLabel('78 percent value-adding')).toBeVisible();
+	await expect(page.getByLabel('44 percent value-adding')).toBeVisible();
 
 	// Gemba Kaizen: approve the first card
 	await nav(page, 'Gemba Kaizen').click();
@@ -162,7 +164,9 @@ test('annotated video: shows the server at work, then plays the boxes version', 
 		await page.goto('/video');
 		await page.getByRole('button', { name: 'Open' }).first().click();
 		await expect(page.getByText('Cached analysis loaded. No model was called.')).toBeVisible();
-		await page.getByRole('button', { name: 'Draw boxes on the video' }).click();
+		// This demo already has cached boxes. Regenerate them to exercise the live annotation flow.
+		await expect(page.getByRole('button', { name: 'Boxes', pressed: true })).toBeVisible();
+		await page.getByRole('button', { name: 'Draw again', exact: true }).click();
 
 		await expect(page.getByRole('progressbar', { name: 'The server is working' })).toBeVisible();
 		await expect(page.getByText(/Backend is alive/)).toBeVisible();
