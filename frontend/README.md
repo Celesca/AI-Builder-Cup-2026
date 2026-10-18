@@ -21,11 +21,13 @@ Rules, review marks and decisions are kept on this device (localStorage); the la
 `static/demo/manifest.json` lists the demo clips. Each is a video plus a cached analysis in the exact shape of
 `ai_backend`'s `POST /analysis/analyze/upload` response, so it opens instantly with no backend and no key.
 
-- Bundled: **`xsens-004-ws10-in-l`**, a 50 s crop of a real car door assembly (CarDA dataset, workstation WS10, `in` camera, left view,
-  recording `xsens_004_WS10_2023_10_03`). It was analysed once on the live backend (4 ergonomic rules from `default-rules.json`,
-  station WS10, nominal cycle 240 s, no takt time) and is cached. Only the video is used; the dataset's Xsens motion capture and depth data are not.
-  The full dataset recordings are `.svo` (ZED); the clip was converted to H.264 mp4.
-  CarDA (Car Door Assembly dataset) is licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); credit the CarDA authors when sharing.
+- Bundled: **`ws10-car-door-2024-04-23`**, 50 s of a real car door assembly (CarDA dataset, workstation WS10, camera SN22106779,
+  left view, 23 Apr 2024 13:53). It was analysed once on the live backend with `gemini-3.1-flash-lite` for both agents
+  (4 ergonomic rules from `default-rules.json`, 0.5 fps, station WS10, nominal cycle 240 s, no takt time) and is cached.
+  The clip was re-encoded to H.264 mp4. CarDA (Car Door Assembly dataset) is licensed
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); credit the CarDA authors when sharing.
+- Retired: `xsens-004-ws10-in-l` (files still in `static/demo/`, not listed). Its video has boxes from an older annotated run burned in,
+  and its analysis used `qwen/qwen3.7-flash`.
 - Also bundled: a **synthetic** animated workstation clip (`cell3-synthetic`), clearly labelled in the video and the UI. Regenerate it with
   `ai_backend/.venv/bin/python frontend/scripts/make-synthetic-demo.py`. The scenario is scripted; segments, incidents, metrics, ROI
   and knowledge-card retrieval are computed with the backend's own functions, and the Gemba Kaizen texts are authored.
@@ -36,7 +38,8 @@ Rules, review marks and decisions are kept on this device (localStorage); the la
   ```
 
   It copies the video into `static/demo/`, analyses it with the default rules, saves `<id>.analysis.json` and registers the clip.
-  Options: `--station`, `--language en|th|ja`, `--rules rules.json`, `--backend http://localhost:8000`, `--id`.
+  Options: `--station`, `--language en|th|ja`, `--rules rules.json`, `--backend http://localhost:8000`, `--id`,
+  `--sample-fps 0.5` (fewer frames, fewer model requests; default 1).
   Browsers play H.264 `.mp4` or `.webm` best (`ffmpeg -i in.mov -c:v libx264 -pix_fmt yuv420p out.mp4`).
 
 ## How it talks to ai_backend

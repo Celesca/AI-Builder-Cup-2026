@@ -5,6 +5,7 @@
 //
 //   pnpm demo:add path/to/clip.mp4 --title "Line 2, station 5" [--cycle-time 21.4] [--takt-time 20] [--station "Cell 5"]
 //                                  [--language en|th|ja] [--rules rules.json] [--backend http://localhost:8000]
+//                                  [--sample-fps 0.5]  (fewer frames, fewer model requests; default 1)
 import { openAsBlob } from 'node:fs';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
@@ -24,6 +25,7 @@ const { values, positionals } = parseArgs({
 		'takt-time': { type: 'string' },
 		language: { type: 'string', default: 'en' },
 		rules: { type: 'string' },
+		'sample-fps': { type: 'string' },
 		backend: { type: 'string', default: process.env.AI_BACKEND_URL ?? 'http://localhost:8000' }
 	}
 });
@@ -60,6 +62,7 @@ form.append('language', values.language);
 form.append('station_name', values.station ?? title);
 if (values['cycle-time']) form.append('cycle_time_s', values['cycle-time']);
 if (values['takt-time']) form.append('takt_time_s', values['takt-time']);
+if (values['sample-fps']) form.append('sample_fps', values['sample-fps']);
 
 console.log(
 	`Analysing ${videoPath} with ${rules.length} rules on ${values.backend} (about a minute per 30 s of video)...`
