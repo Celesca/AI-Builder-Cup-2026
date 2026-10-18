@@ -1,5 +1,5 @@
 # VALZ Dashboard (SvelteKit + adapter-node).
-# The browser only talks to this server; /api/* is proxied to ai_backend (AI_BACKEND_URL).
+# AI_BACKEND_URL selects the API; a public HTTPS URL also links browser requests directly to it.
 
 FROM node:22-alpine AS build
 WORKDIR /app
@@ -7,7 +7,8 @@ RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-# App build only: the `build` script also packages src/lib as a library (svelte-package + publint)
+# Vercel uses its own adapter; Docker must produce the adapter-node build/ entry point.
+ENV VERCEL=""
 RUN pnpm exec svelte-kit sync && pnpm exec vite build
 
 FROM node:22-alpine

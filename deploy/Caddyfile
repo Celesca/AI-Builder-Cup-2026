@@ -1,30 +1,59 @@
-# HTTPS for the whole system on one VM: Caddy gets and renews a Let's Encrypt certificate for $DOMAIN by itself.
-# Needs a DNS A record for $DOMAIN pointing at this server and ports 80 and 443 open.
-# It replaces nginx (docker-compose.https.yml): same routes as deploy/nginx.conf.
-{$DOMAIN} {
-	# The site is public until sign-in exists (docs/DEPLOYMENT_VM.md, part B), and every analysis spends model credits.
-	# Protect it with a password in the meantime: run
-	#   docker run --rm caddy:2 caddy hash-password --plaintext 'a-long-password'
-	# then uncomment this block and paste the hash. It covers every route, including /docs.
-	# basic_auth {
-	# 	valz <paste-hash-here>
-	# }
+# One VM, two HTTPS hosts. Caddy obtains and renews both certificates.
+# DNS for both domains must point at this VM; open TCP 80/443 and UDP 443.
+# docker-compose.https.yml uses this instead of nginx (never bind both to port 80).
 
-	# Video uploads (ai_backend MAX_VIDEO_MB is 500)
+(long_requests) {
 	request_body {
 		max_size 550MB
 	}
+}
 
-	# ai_backend API docs (Swagger UI, ReDoc, OpenAPI spec). Remove this block to hide them in production.
+{$DOMAIN:valz.limitlesstech-co.com} {
+	import long_requests
+	encode zstd gzip
+
+	# Optional password protection must cover BOTH hosts, not just the dashboard.
+	# CORS is not authentication; public API calls can spend model credits.
+
+	# Keep the dashboard's API documentation links working.
 	@apidocs path /docs /redoc /openapi.json
 	handle @apidocs {
 		reverse_proxy api:8000
 	}
 
-	# Everything else is the dashboard; its /api/* route proxies to ai_backend
+	# /api/* remains available through the SvelteKit proxy as a same-origin fallback.
 	handle {
 		reverse_proxy frontend:3000 {
-			# /api/analysis/analyze stays open until the analysis finishes; stream, do not buffer
+			flush_interval -1
+			transport http {
+				dial_timeout 60s
+				response_header_timeout 900s
+				read_timeout 900s
+				write_timeout 900s
+			}
+		}
+	}
+}
+
+{$API_DOMAIN:gemba.limitlesstech-co.com} {
+	import long_requests
+
+	# Preserve older clients using https://gemba.limitlesstech-co.com/api/*.
+	handle_path /api/* {
+		reverse_proxy api:8000 {
+			flush_interval -1
+			transport http {
+				dial_timeout 60s
+				response_header_timeout 900s
+				read_timeout 900s
+				write_timeout 900s
+			}
+		}
+	}
+
+	# Canonical API URLs: /health, /docs, /analysis/*, /safety/*, /voice/*, etc.
+	handle {
+		reverse_proxy api:8000 {
 			flush_interval -1
 			transport http {
 				dial_timeout 60s

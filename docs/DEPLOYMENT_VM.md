@@ -37,8 +37,61 @@ more than that.
 > **Read this first**
 >
 > - The `gcloud` and `firebase` commands were written against the documentation and **have not been run against a live project**. Use `--help` when a flag is rejected.
-> - The Compose override and the Caddy configuration were validated here (`docker compose config` and `caddy validate`). The images were not built.
-> - **Part A has no sign-in.** Until Part B exists, anyone with the URL can run analyses and spend your model credits. Turn on the Caddy password in A5 before you share the address.
+> - The two-host configuration below has been built and deployed on the current VM. Compose, Caddy and nginx configurations were validated, and HTTPS, CORS and browser navigation were checked.
+> - **Part A has no sign-in.** Until Part B exists, anyone with the URL can run analyses and spend your model credits. Protect both the dashboard and the API before wider use.
+
+## This VM: frontend and API on separate domains
+
+The production Compose override serves **both applications on this VM**, using two virtual hosts:
+
+| Address | Service |
+|---|---|
+| `https://valz.limitlesstech-co.com` | SvelteKit dashboard |
+| `https://gemba.limitlesstech-co.com` | FastAPI (for example `/health`, `/docs`, `/analysis/analyze/upload`) |
+| `https://gemba.limitlesstech-co.com/api/*` | Compatibility alias for older clients; `/api` is stripped |
+
+Both DNS A records point to `157.254.192.65`. [deploy/Caddyfile](../deploy/Caddyfile) handles HTTPS and automatic certificate
+renewal for both hosts. [deploy/nginx.conf](../deploy/nginx.conf) provides the corresponding HTTP virtual hosts for the base
+Compose stack; **do not run nginx and Caddy on port 80 at the same time**.
+
+On this VM the checkout is `/home/celescadev/AI-Builder-Cup-2026`. Its untracked `.env` contains:
+
+```dotenv
+DOMAIN=valz.limitlesstech-co.com
+API_DOMAIN=gemba.limitlesstech-co.com
+COMPOSE_PROJECT_NAME=ai_backend
+```
+
+The project name preserves the existing Caddy certificate volumes. Deploy **from this checkout**, not the old
+`/home/celescadev/U-HACKATHON26/ai_backend` checkout. The old credentials were copied locally to `ai_backend/.env` (mode `600`);
+no credentials are committed. API cache and voice data use named volumes, and all three services restart automatically.
+
+```bash
+cd /home/celescadev/AI-Builder-Cup-2026
+sudo docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build --wait
+sudo docker compose -f docker-compose.yml -f docker-compose.https.yml ps
+sudo docker compose -f docker-compose.yml -f docker-compose.https.yml logs --tail=100 api frontend caddy
+```
+
+For a fresh VM, copy `.env.example` to `.env`, copy `ai_backend/.env.example` to `ai_backend/.env`, configure model keys,
+then start the same Compose command. A fresh install does not need `COMPOSE_PROJECT_NAME=ai_backend`.
+
+The override sets the frontend's `AI_BACKEND_URL=https://gemba.limitlesstech-co.com` and its public `ORIGIN`. The existing
+`/config` endpoint supplies the API address to the browser, so status, analysis, voice and video uploads use the HTTPS API
+host directly. FastAPI's `ALLOWED_ORIGINS` allows `https://valz.limitlesstech-co.com`; the frontend `/api/*` proxy is retained
+as a same-origin fallback. `ALLOW_BACKEND_OVERRIDE=false` prevents arbitrary server-side proxy destinations.
+
+```bash
+curl -fsS https://valz.limitlesstech-co.com/config  # uploadBackend = https://gemba.limitlesstech-co.com
+curl -fsS https://gemba.limitlesstech-co.com/health
+curl -fsS https://valz.limitlesstech-co.com/api/health
+```
+
+**Security:** the current deployment has no sign-in. CORS is not authentication; a public API caller can spend model credits.
+Before sharing beyond the pilot, add authentication to **both hosts** (or an API authorization layer), not just the dashboard.
+
+The generic Google Cloud provisioning instructions follow below. Where they use `$DOMAIN`, it is the frontend domain;
+create an additional DNS record for `$API_DOMAIN` and include `API_DOMAIN` in `.env` too.
 
 ## Variables
 
@@ -48,6 +101,7 @@ export BILLING_ACCOUNT=<XXXXXX-XXXXXX-XXXXXX>
 export REGION=asia-southeast1
 export ZONE=asia-southeast1-b
 export DOMAIN=valz.<your-domain>
+export API_DOMAIN=gemba.<your-domain>
 sa() { echo "valz-vm@$PROJECT_ID.iam.gserviceaccount.com"; }
 ```
 
@@ -115,7 +169,7 @@ gcloud compute ssh valz-vm --zone=$ZONE --command='docker --version && docker co
 
 ## A3. DNS
 
-At your DNS provider, create an `A` record: `$DOMAIN` → the value of `$IP`. Cloud DNS is not needed.
+At your DNS provider, create `A` records for both `$DOMAIN` and `$API_DOMAIN` pointing to `$IP`. Cloud DNS is not needed.
 
 **Check:** `dig +short $DOMAIN` prints `$IP`. Do this before A6, or the certificate request fails and Caddy backs off for a while.
 
@@ -133,7 +187,7 @@ tar --exclude=node_modules --exclude=.git --exclude=.venv --exclude=.svelte-kit 
 ```bash
 gcloud compute ssh valz-vm --zone=$ZONE
 cd ~/valz
-echo "DOMAIN=<valz.your-domain>" > .env                 # read by docker compose
+printf 'DOMAIN=%s\nAPI_DOMAIN=%s\n' "$DOMAIN" "$API_DOMAIN" > .env  # read by docker compose
 cp ai_backend/.env.example ai_backend/.env
 nano ai_backend/.env                                    # OPENROUTER_API_KEY, optional ELEVENLABS_API_KEY
 chmod 600 ai_backend/.env .env
@@ -142,12 +196,11 @@ chmod 600 ai_backend/.env .env
 The model keys live in this file on the VM's disk, which Google encrypts at rest. The file is the one place the secrets exist, so do not
 copy it into the repository.
 
-**Turn on the password** (until part B replaces it). In [deploy/Caddyfile](../deploy/Caddyfile) uncomment the `basic_auth` block and paste a hash:
-
-```bash
-docker run --rm caddy:2 caddy hash-password --plaintext 'a-long-password'
-nano deploy/Caddyfile
-```
+**Protect access before wider use.** The current two-host deployment has no authentication. A password on only the
+frontend does not protect the public API. Prefer application/API authentication that supports the browser's cross-origin
+requests. Caddy `basic_auth` on both hosts also requires credential forwarding and CORS preflight handling; simply adding
+a password block is not enough for the current direct browser API calls. Part B's frontend-only session checks must likewise
+be extended to protect the API host.
 
 ## A6. Start
 
@@ -165,15 +218,16 @@ baked into the image). Compose restarts the containers after a reboot, and the s
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.https.yml ps          # api, frontend, caddy are Up
 docker compose -f docker-compose.yml -f docker-compose.https.yml logs caddy | grep -i "certificate obtained"
-curl -su valz:<password> https://$DOMAIN/api/health                          # "status":"healthy"
+curl -fsS https://$API_DOMAIN/health                                      # "status":"healthy"
+curl -fsS https://$DOMAIN/api/health                                      # frontend proxy fallback
 ```
 
-In the browser: `https://$DOMAIN` asks for the password, loads the dashboard, the cached demo clip plays, and uploading a clip returns
-cards (needs `OPENROUTER_API_KEY`). `https://$DOMAIN/docs` shows the API documentation.
+In the browser: `https://$DOMAIN` loads the dashboard, the cached demo clip plays, and uploading a clip returns
+cards (needs `OPENROUTER_API_KEY`). `https://$API_DOMAIN/docs` shows the API documentation.
 
-**Request path** (numbers match the diagram): the browser reaches Caddy (1), which sends `/docs`, `/redoc` and `/openapi.json` to the API and
-everything else to the frontend (2); the frontend's `/api/*` route streams to `ai_backend` (3), which calls OpenRouter and ElevenLabs (6).
-Numbers 4 and 5 appear in part B.
+**Request path**: the browser reaches Caddy, which sends the frontend host to SvelteKit and the API host to FastAPI.
+The dashboard reads `/config` and calls the public API host directly (CORS permits the frontend origin). The frontend's
+`/api/*` proxy remains a fallback; FastAPI calls OpenRouter and ElevenLabs. Numbers 4 and 5 in the diagram appear in part B.
 
 ## A8. Operate
 

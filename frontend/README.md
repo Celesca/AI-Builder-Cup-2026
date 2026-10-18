@@ -86,3 +86,7 @@ docker run -p 3000:3000 -e AI_BACKEND_URL=http://host.docker.internal:8000 valz-
 ```
 
 Use the root [docker-compose.yml](../docker-compose.yml) to run nginx, this app and ai_backend together.
+For this VM, add `-f docker-compose.https.yml`: Caddy serves the frontend at `https://valz.limitlesstech-co.com` and the API
+at `https://gemba.limitlesstech-co.com`. The override sets `AI_BACKEND_URL` to that HTTPS API address; `/config` exposes it
+for browser requests, and the API allows the frontend's CORS origin. See [the VM guide](../docs/DEPLOYMENT_VM.md).
+The Vite configuration selects adapter-node for local/Docker builds and adapter-vercel only when `VERCEL` is set.

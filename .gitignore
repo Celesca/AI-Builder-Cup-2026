@@ -1,0 +1,4 @@
+# VM-specific Compose configuration (never commit credentials).
+.env
+.env.*
+!.env.example

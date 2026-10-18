@@ -77,12 +77,18 @@ Two paths, from the fewest Google services to the most managed. Pick one; the se
 
 The Docker Compose stack in this repository runs on one Compute Engine VM, with Caddy for HTTPS ([docker-compose.https.yml](docker-compose.https.yml),
 [deploy/Caddyfile](deploy/Caddyfile)). Part A needs no code changes. Part B adds Firestore for decisions that every manager sees and Firebase Authentication
-for Google sign-in. Until part B exists the site has no sign-in, so the guide has you turn on a Caddy password first.
+for Google sign-in. Until part B exists the site has no sign-in; protect both the dashboard and the public API before wider use.
 
 ```bash
 # on the VM, after DNS points at it (docs/DEPLOYMENT_VM.md, part A)
-DOMAIN=valz.example.com docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
+DOMAIN=valz.limitlesstech-co.com API_DOMAIN=gemba.limitlesstech-co.com \
+  docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
 ```
+
+The current VM serves the dashboard at **https://valz.limitlesstech-co.com** and the API at
+**https://gemba.limitlesstech-co.com** (Swagger: `/docs`). Both run in the same Compose stack. The HTTPS override sets the
+frontend's backend URL and API CORS origin automatically; both DNS records must point at the VM.
+See [the VM-specific deployment instructions](docs/DEPLOYMENT_VM.md#this-vm-frontend-and-api-on-separate-domains).
 
 ### Full: managed services
 
@@ -112,8 +118,9 @@ of services, each with what it does for VALZ, the tool that deploys it, the comm
 | §19 | Logging, Monitoring, Trace, Error Reporting, budgets | automatic plus gcloud |
 | §20–§21 | End-to-end check, tear down | — |
 
-The commands in both guides have not been run against a live project; check flags with `gcloud <command> --help`. The Compose override
-and the Caddy configuration for the VM path were validated with `docker compose config` and `caddy validate`.
+The Google Cloud provisioning commands in both guides have not been run against a live project; check flags with
+`gcloud <command> --help`. The two-host Docker VM deployment has been built and verified, including Compose, Caddy and
+nginx validation, HTTPS certificates, API CORS and browser navigation.
 
 ## Project status
 
@@ -179,10 +186,12 @@ cp ai_backend/.env.example ai_backend/.env      # set OPENROUTER_API_KEY
 docker compose up --build                       # http://localhost  (API docs: http://localhost/docs)
 ```
 
-The browser only talks to the frontend. Its server route [`/api/[...path]`](frontend/src/routes/api/[...path]/+server.ts)
+In local development the browser only talks to the frontend. Its server route [`/api/[...path]`](frontend/src/routes/api/[...path]/+server.ts)
 streams requests (including video uploads) to `AI_BACKEND_URL` (`http://api:8000` in Compose), so ai_backend needs no CORS
 setup and is not exposed except for its API docs. Uploads up to 550 MB and 15-minute analyses are allowed end to end.
-On Google Cloud the upload goes straight to Cloud Storage instead, because Cloud Run limits request bodies to 32 MiB.
+On the HTTPS VM deployment, `/config` supplies the public API URL, and browser calls and uploads go directly to
+`https://gemba.limitlesstech-co.com` with CORS limited to the frontend origin. In the managed Cloud Run design, uploads
+instead go straight to Cloud Storage because Cloud Run limits request bodies to 32 MiB.
 
 ### AI backend
 

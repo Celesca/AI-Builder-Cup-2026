@@ -40,7 +40,7 @@ RUN mkdir -p /app/models \
     && python -c "from ultralytics import YOLO; YOLO('${YOLO_MODEL}')" \
     && test -f ${YOLO_MODEL}
 
-COPY video_convert.py video_utils.py openrouter_client.py vlm_action_model.py safety_agent.py lss_agent.py voice_agent.py \
+COPY annotate_video.py video_convert.py video_utils.py openrouter_client.py vlm_action_model.py safety_agent.py lss_agent.py voice_agent.py \
     video_action_model.py person_count_model.py server.py ./
 COPY knowledge ./knowledge
 COPY static ./static
