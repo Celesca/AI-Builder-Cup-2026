@@ -1,6 +1,23 @@
-# VALZ
+<p align="center">
+  <img src="images/valz-banner.png" alt="VALZ: Observe, Understand, Improve. Vision-Language Model for Smart Manufacturing" width="100%">
+</p>
 
-**Existing cameras. Actionable intelligence.**
+<h1 align="center">VALZ</h1>
+
+<p align="center"><b>Existing cameras. Actionable intelligence.</b></p>
+
+<p align="center">
+  <img alt="Google Cloud AI Builder Cup 2026" src="https://img.shields.io/badge/Google%20Cloud-AI%20Builder%20Cup%202026-4285F4?logo=googlecloud&logoColor=white">
+  <img alt="Category: Manufacturing" src="https://img.shields.io/badge/Category-Manufacturing-34A853">
+  <img alt="Gemini 3.1 Flash-Lite" src="https://img.shields.io/badge/Gemini-3.1%20Flash--Lite-8E75B2?logo=googlegemini&logoColor=white">
+  <img alt="Firebase" src="https://img.shields.io/badge/Firebase-Hosting-FFCA28?logo=firebase&logoColor=black">
+  <br>
+  <img alt="SvelteKit" src="https://img.shields.io/badge/SvelteKit-3-FF3E00?logo=svelte&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white">
+  <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white">
+  <img alt="YOLOv8" src="https://img.shields.io/badge/YOLOv8-person%20detection-111F68">
+  <img alt="Team TuiDui" src="https://img.shields.io/badge/Team-TuiDui-EA4335">
+</p>
 
 VALZ turns ordinary factory camera footage into observations a supervisor can check and improvement proposals a team can act on.
 A **Safety Agent** scores every sampled frame against safety rules written in plain English, and a **Gemba Kaizen Agent** measures
@@ -10,9 +27,6 @@ it saw, it does not guess: it writes a question for the operator.
 > *The system says what it doesn't know, then asks the person who does.*
 
 Team **TuiDui** · Google Cloud **AI Builder Cup 2026** · Manufacturing: Intelligent Operations & Industrial Efficiency
-
-**Live demo:** [valz-aibuildercup.web.app](https://valz-aibuildercup.web.app) (dashboard on Firebase Hosting, opens a cached Gemini analysis
-of a real assembly clip; no sign-in, no API key)
 
 ![VALZ Safety Agent: rules over time and four near misses on a real car-door assembly clip](images/valz-safety.jpg)
 
@@ -47,7 +61,7 @@ No rule crossed its 60 % threshold, and the app says so.
 | Kaizen cards, safety actions, operator questions | Strict JSON schema, grounded in 19 curated lean and ergonomics cards | **Gemini 3.1 Flash-Lite** via the **Gemini API** |
 | Waste seconds, per-shift projection, ROI | Plain Python: times come from frame timestamps, never from the model | — |
 | Person boxes and people count | YOLOv8n, local | — |
-| Demo dashboard | Static SvelteKit build | **Firebase Hosting** |
+| Demo dashboard | Static SvelteKit build, cached demo clips | **Firebase Hosting** (or Cloud Run with the Dockerfile) |
 
 The backend talks to any OpenAI-compatible endpoint, so the Gemini API is a setting, not a code path: see
 [ai_backend/.env.example](ai_backend/.env.example) (`OPENROUTER_URL`, `VLM_MODEL`, `LSS_LLM_MODEL`, `LLM_MIN_INTERVAL_S` for the free tier).
@@ -62,7 +76,7 @@ team delegation, shared data contracts and the 24-hour build plan, is in
 to the fully managed design; see [Deploy on Google Cloud](#deploy-on-google-cloud).
 
 > **Status.** The diagram is the target architecture. Today both agents run on Gemini 3.1 Flash-Lite through the Gemini API, the
-> dashboard demo is on Firebase Hosting, and the backend runs locally or on one VM with Docker Compose. Vertex AI, Workflows, Eventarc,
+> dashboard has a static demo build for Firebase Hosting, and the backend runs locally or on one VM with Docker Compose. Vertex AI, Workflows, Eventarc,
 > Firestore, Pub/Sub and BigQuery are planned, not built. The Voice Agent still uses ElevenLabs. [Project status](#project-status) lists
 > each piece.
 
@@ -184,7 +198,7 @@ and the Caddy configuration for the VM path were validated with `docker compose 
 | 06 · 07 | Engine and State Store | P3 | engine in Python; browser storage and SQLite | engine unchanged; Firestore | Engine **PoC**, store Planned |
 | 08 | Voice Agent | P4 | ElevenLabs | Speech-to-Text, Text-to-Speech, Translation | **PoC** |
 | 09 | Dashboard: Video, Safety Agent, Dashboard, Gemba Kaizen and Voice pages, with a mock mode | P5 | SvelteKit in [frontend/](frontend) | Cloud Run + load balancer | **Integrated** |
-| — | Hosting, CI/CD, IAM, observability | P3 | Demo dashboard on Firebase Hosting; full stack with Docker Compose | the Google Cloud services above | Demo **live**, rest planned |
+| — | Hosting, CI/CD, IAM, observability | P3 | Static demo build for Firebase Hosting; full stack with Docker Compose | the Google Cloud services above | Demo build **ready**, rest planned |
 
 ## Repository layout
 
