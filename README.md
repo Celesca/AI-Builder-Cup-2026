@@ -10,7 +10,6 @@
   <img alt="Google Cloud AI Builder Cup 2026" src="https://img.shields.io/badge/Google%20Cloud-AI%20Builder%20Cup%202026-4285F4?logo=googlecloud&logoColor=white">
   <img alt="Category: Manufacturing" src="https://img.shields.io/badge/Category-Manufacturing-34A853">
   <img alt="Gemini 3.1 Flash-Lite" src="https://img.shields.io/badge/Gemini-3.1%20Flash--Lite-8E75B2?logo=googlegemini&logoColor=white">
-  <img alt="Firebase" src="https://img.shields.io/badge/Firebase-Hosting-FFCA28?logo=firebase&logoColor=black">
   <br>
   <img alt="SvelteKit" src="https://img.shields.io/badge/SvelteKit-3-FF3E00?logo=svelte&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white">
