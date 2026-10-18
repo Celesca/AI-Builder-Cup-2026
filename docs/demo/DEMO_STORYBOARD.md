@@ -89,7 +89,10 @@ Browser at 1920×1080, page zoom 125 % (layout 1536×864), as in the runbook.
 The clip ships with a pre-made copy that has person boxes drawn by the backend (`ws10-car-door-2024-04-23.annotated.mp4`, from
 `POST /safety/annotate` with `gemini-3.1-flash-lite`, the 4 default rules, 0.5 fps, near-miss margin 0.15). Opening the clip shows it
 by default; the Video page's **Annotated video** panel has **Original / Boxes** and says "cached with the demo clip, drawn with the default rules".
-Only 00:18–00:20 has a box (amber, awkward posture 0.50). No red boxes. For the hook (shot 1.1) either version works, since 00:02–00:12 has no box.
+YOLO boxes the operator on almost every frame (1,437 of 1,492). Without a rule hit, the box carries Gemini's activity label:
+blue "carrying - transport waste" while the cart is pushed, green "working - value-adding" at the door, blue "walking - motion waste".
+At 00:18–00:20 the amber "NEAR MISS: awkward_posture 0.50" box and banner take over. No red boxes. The hook (shot 1.1) on **Boxes**
+shows the transport-waste label live, which supports the first sentence. A few frames have no box where the door hides the operator.
 After the threshold change in shot 3.3 the panel warns that the boxes were drawn with other rules; that is expected.
 
 ## Shots that must not be recorded as working

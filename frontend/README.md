@@ -26,7 +26,8 @@ Rules, review marks and decisions are kept on this device (localStorage); the la
   (4 ergonomic rules from `default-rules.json`, 0.5 fps, station WS10, nominal cycle 240 s, no takt time) and is cached.
   The clip was re-encoded to H.264 mp4. CarDA (Car Door Assembly dataset) is licensed
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); credit the CarDA authors when sharing.
-  It also ships `ws10-car-door-2024-04-23.annotated.mp4`, the same clip with person boxes drawn by the backend. A clip's optional
+  It also ships `ws10-car-door-2024-04-23.annotated.mp4`, the same clip with person boxes drawn by the backend: each person carries the activity label (green
+  value-adding, blue waste) and rule hits turn the box amber or red. A clip's optional
   `annotated` field in `manifest.json` points at such a copy; the clip then opens with **Boxes** on and the **Original / Boxes** switch
   works with no backend.
 - Retired: `xsens-004-ws10-in-l` (files still in `static/demo/`, not listed). Its video has boxes from an older annotated run burned in,

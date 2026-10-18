@@ -166,7 +166,8 @@
 			</div>
 		{:else if a.state === 'done' && a.url}
 			<p>
-				Red boxes are violations, amber are near misses (within 0.15 of the threshold).
+				Red boxes are violations, amber are near misses (within 0.15 of the threshold). Otherwise
+				each person shows what they are doing: green is value-adding work, blue is waste.
 				{summary}.
 			</p>
 			{#if session.annotationStale}
