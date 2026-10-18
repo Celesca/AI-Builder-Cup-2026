@@ -33,6 +33,8 @@ export class Annotation {
 	signature = $state('');
 	/** Which video the players show when an annotated one exists */
 	showing = $state<'original' | 'annotated'>('original');
+	/** The annotated video came with a demo clip, it was not drawn now */
+	cached = $state(false);
 
 	/** Clock, so the elapsed times tick */
 	now = $state(Date.now());
@@ -135,6 +137,16 @@ export class Annotation {
 		this.abort?.abort();
 	}
 
+	/** Show a demo clip's pre-made annotated video: no backend, no wait. */
+	useCached(url: string, signature: string) {
+		this.reset();
+		this.url = url;
+		this.signature = signature;
+		this.cached = true;
+		this.state = 'done';
+		this.showing = 'annotated';
+	}
+
 	/** Forget the annotated video (another source was loaded). */
 	reset() {
 		this.cancel();
@@ -147,7 +159,8 @@ export class Annotation {
 	}
 
 	private discard() {
-		if (this.url) URL.revokeObjectURL(this.url);
+		if (this.url && !this.cached) URL.revokeObjectURL(this.url);
+		this.cached = false;
 		this.url = null;
 		this.size = 0;
 		this.safetyEvents = this.annotatedFrames = null;

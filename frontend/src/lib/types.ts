@@ -204,6 +204,8 @@ export interface DemoClip {
 	duration: number;
 	synthetic?: boolean;
 	note?: string;
+	/** Optional pre-made copy with boxes drawn (POST /safety/annotate), drawn with the default rules */
+	annotated?: string;
 }
 
 export interface SourceInfo {

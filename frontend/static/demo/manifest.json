@@ -1,13 +1,14 @@
 {
   "clips": [
     {
-      "id": "xsens-004-ws10-in-l",
-      "title": "WS10 car door assembly (in camera, L view)",
-      "video": "/demo/xsens-004-ws10-in-l.mp4",
-      "analysis": "/demo/xsens-004-ws10-in-l.analysis.json",
+      "id": "ws10-car-door-2024-04-23",
+      "title": "WS10 car door assembly (CarDA, 23 Apr 2024, L view)",
+      "video": "/demo/ws10-car-door-2024-04-23.mp4",
+      "analysis": "/demo/ws10-car-door-2024-04-23.analysis.json",
       "duration": 50,
       "synthetic": false,
-      "note": "CarDA (CC BY 4.0), xsens_004_WS10_2023_10_03, 50 s crop. Analysed 2026-10-16 with qwen/qwen3.7-flash"
+      "note": "CarDA (CC BY 4.0), WS10 SN22106779, 23 Apr 2024 13:53, L view, 50 s. Analysed 2026-10-18 with gemini-3.1-flash-lite, 0.5 fps",
+      "annotated": "/demo/ws10-car-door-2024-04-23.annotated.mp4"
     },
     {
       "id": "cell3-synthetic",

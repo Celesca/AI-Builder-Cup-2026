@@ -225,8 +225,10 @@ class VLMActionDetector:
             "You are checking one frame from a workplace camera.\n\n"
             f"1. Activity. {question}\n{listing}\n"
             "Answer with the letter in `activity` and your confidence 0-100 as an integer in `activity_confidence`.\n\n"
-            "2. Safety rules. For every rule below, put its id and an integer 0-100 in `rules`: how sure you are that "
-            "the situation is clearly visible in this image (0 = not visible, 100 = certain).\n"
+            "2. Safety rules. For every rule below, put its id and an integer 0-100 in `rules`: the chance that the "
+            "situation described by the rule is happening in this image. 100 = clearly happening. 0 = not happening, "
+            "including when you are sure it is not happening. A person walking or standing upright is not bending, "
+            "lifting or reaching overhead.\n"
             f"{rule_lines}\n\nReturn JSON only."
         )
 
