@@ -10,6 +10,7 @@
   <img alt="Google Cloud AI Builder Cup 2026" src="https://img.shields.io/badge/Google%20Cloud-AI%20Builder%20Cup%202026-4285F4?logo=googlecloud&logoColor=white">
   <img alt="Category: Manufacturing" src="https://img.shields.io/badge/Category-Manufacturing-34A853">
   <img alt="Gemini 3.1 Flash-Lite" src="https://img.shields.io/badge/Gemini-3.1%20Flash--Lite-8E75B2?logo=googlegemini&logoColor=white">
+  <img alt="Google Cloud Run" src="https://img.shields.io/badge/Cloud%20Run-deploy-4285F4?logo=googlecloud&logoColor=white">
   <br>
   <img alt="SvelteKit" src="https://img.shields.io/badge/SvelteKit-3-FF3E00?logo=svelte&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white">
@@ -60,7 +61,7 @@ No rule crossed its 60 % threshold, and the app says so.
 | Kaizen cards, safety actions, operator questions | Strict JSON schema, grounded in 19 curated lean and ergonomics cards | **Gemini 3.1 Flash-Lite** via the **Gemini API** |
 | Waste seconds, per-shift projection, ROI | Plain Python: times come from frame timestamps, never from the model | — |
 | Person boxes and people count | YOLOv8n, local | — |
-| Demo dashboard | Static SvelteKit build, cached demo clips | **Firebase Hosting** (or Cloud Run with the Dockerfile) |
+| Dashboard and API | SvelteKit dashboard and FastAPI service, one container each | **Google Cloud Run** |
 
 The backend talks to any OpenAI-compatible endpoint, so the Gemini API is a setting, not a code path: see
 [ai_backend/.env.example](ai_backend/.env.example) (`OPENROUTER_URL`, `VLM_MODEL`, `LSS_LLM_MODEL`, `LLM_MIN_INTERVAL_S` for the free tier).
@@ -75,7 +76,7 @@ team delegation, shared data contracts and the 24-hour build plan, is in
 to the fully managed design; see [Deploy on Google Cloud](#deploy-on-google-cloud).
 
 > **Status.** The diagram is the target architecture. Today both agents run on Gemini 3.1 Flash-Lite through the Gemini API, the
-> dashboard has a static demo build for Firebase Hosting, and the backend runs locally or on one VM with Docker Compose. Vertex AI, Workflows, Eventarc,
+> dashboard and the API deploy to Google Cloud Run (see [Deploy on Google Cloud Run](#deploy-on-google-cloud-run)). Vertex AI, Workflows, Eventarc,
 > Firestore, Pub/Sub and BigQuery are planned, not built. The Voice Agent still uses ElevenLabs. [Project status](#project-status) lists
 > each piece.
 
@@ -113,18 +114,27 @@ to the fully managed design; see [Deploy on Google Cloud](#deploy-on-google-clou
 Segment classes are `VA`, `NVA_MOTION`, `NVA_TRANSPORT`, `NVA_WAITING`, `NVA_SEARCH`, `SAFETY_ERGO`, `SOP_DEVIATION` and `UNCERTAIN`.
 A segment's status moves from `auto` to `needs_verification` to `verified`. The engine, not the model, computes the numbers.
 
-## Deploy the demo dashboard (free)
+## Deploy on Google Cloud Run
 
-The dashboard can be built as a static single-page app that opens the bundled demo clips with no backend. It is served from
-**Firebase Hosting** on the free Spark plan (no billing account):
+VALZ runs as two Cloud Run services, `valz-api` (FastAPI, both agents) and `valz-frontend` (SvelteKit dashboard), each built
+from its own Dockerfile. Point the API at Gemini with environment variables; keep the key in Secret Manager.
 
 ```bash
-cd frontend
-pnpm run build:static            # STATIC_DEMO=1 → build-static/ (adapter-static, SPA fallback)
-firebase deploy --only hosting   # project in .firebaserc, config in firebase.json
+# API: Gemini through the Gemini API (OpenAI-compatible endpoint)
+gcloud run deploy valz-api --source ai_backend --region asia-southeast1 --memory 4Gi --cpu 2 --timeout 900 \
+  --set-env-vars OPENROUTER_URL=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions,VLM_MODEL=gemini-3.1-flash-lite,LSS_LLM_MODEL=gemini-3.1-flash-lite \
+  --set-secrets OPENROUTER_API_KEY=gemini-api-key:latest
+
+# Dashboard: proxies /api/* to the API; big uploads go straight to its https address
+gcloud run deploy valz-frontend --source frontend --region asia-southeast1 --allow-unauthenticated \
+  --set-env-vars AI_BACKEND_URL=https://<valz-api URL>,ALLOW_BACKEND_OVERRIDE=false,HOST_HEADER=host
 ```
 
-Uploads, re-runs and the Voice Agent need the backend, so they report it as offline in this build.
+- The frontend container runs `node build`, so build it with `@sveltejs/adapter-node` (already a dev dependency); the default
+  `vite.config.ts` adapter targets Vercel.
+- On the free tier of the Gemini API, set `LLM_MIN_INTERVAL_S=4.5` to stay under 15 requests a minute.
+- Cloud Run limits request bodies to 32 MiB; the dashboard sends uploads directly to the API when `AI_BACKEND_URL` is https.
+- Map your domain with Cloud Run domain mappings (or a load balancer) and point the DNS record at it.
 
 ## Deploy on Google Cloud
 
@@ -197,7 +207,7 @@ and the Caddy configuration for the VM path were validated with `docker compose 
 | 06 · 07 | Engine and State Store | P3 | engine in Python; browser storage and SQLite | engine unchanged; Firestore | Engine **PoC**, store Planned |
 | 08 | Voice Agent | P4 | ElevenLabs | Speech-to-Text, Text-to-Speech, Translation | **PoC** |
 | 09 | Dashboard: Video, Safety Agent, Dashboard, Gemba Kaizen and Voice pages, with a mock mode | P5 | SvelteKit in [frontend/](frontend) | Cloud Run + load balancer | **Integrated** |
-| — | Hosting, CI/CD, IAM, observability | P3 | Static demo build for Firebase Hosting; full stack with Docker Compose | the Google Cloud services above | Demo build **ready**, rest planned |
+| — | Hosting, CI/CD, IAM, observability | P3 | Cloud Run (`valz-api`, `valz-frontend`); Docker Compose for local | the Google Cloud services above | Cloud Run **deploying**, rest planned |
 
 ## Repository layout
 
