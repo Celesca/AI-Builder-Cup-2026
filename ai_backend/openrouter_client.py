@@ -11,6 +11,7 @@ import copy
 import json
 import os
 import re
+import threading
 import time
 from typing import Dict, List, Optional, Tuple
 
@@ -19,6 +20,19 @@ import requests
 OPENROUTER_URL = os.getenv("OPENROUTER_URL", "https://openrouter.ai/api/v1/chat/completions")  # override: proxy / tests
 RETRY_STATUS = {429, 502, 503, 504}
 RETRY_DELAYS = (1.0, 3.0)
+# Minimum seconds between requests, shared by all threads: 4.5 keeps a 15 requests/minute quota (Gemini API free tier)
+MIN_INTERVAL_S = float(os.getenv("LLM_MIN_INTERVAL_S", "0"))
+_pace_lock = threading.Lock()
+_last_request = 0.0
+
+
+def _request(body: Dict, headers: Dict, timeout: float):
+    global _last_request
+    if MIN_INTERVAL_S > 0:
+        with _pace_lock:
+            time.sleep(max(0.0, _last_request + MIN_INTERVAL_S - time.monotonic()))
+            _last_request = time.monotonic()
+    return requests.post(OPENROUTER_URL, headers=headers, json=body, timeout=timeout)
 
 
 def parse_json(text: str) -> Dict:
@@ -32,12 +46,12 @@ def parse_json(text: str) -> Dict:
 
 
 def _post(body: Dict, headers: Dict, timeout: float):
-    response = requests.post(OPENROUTER_URL, headers=headers, json=body, timeout=timeout)
+    response = _request(body, headers, timeout)
     for delay in RETRY_DELAYS:
         if response.status_code not in RETRY_STATUS:
             break
         time.sleep(delay)
-        response = requests.post(OPENROUTER_URL, headers=headers, json=body, timeout=timeout)
+        response = _request(body, headers, timeout)
     return response
 
 
@@ -54,7 +68,7 @@ def chat(messages: List[Dict], model: str, api_key: str, schema: Optional[Dict] 
     body: Dict = {"model": model, "temperature": temperature, "messages": messages}
     if max_tokens:
         body["max_tokens"] = max_tokens
-    if reasoning is not None:
+    if reasoning is not None and "openrouter.ai" in OPENROUTER_URL:  # other OpenAI-compatible APIs reject it (HTTP 400)
         body["reasoning"] = reasoning  # e.g. {"enabled": False}: thinking tokens would eat max_tokens and cut the answer
     if schema:
         body["response_format"] = {"type": "json_schema",
