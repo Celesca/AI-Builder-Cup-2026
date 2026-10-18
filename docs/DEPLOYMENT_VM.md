@@ -2,7 +2,7 @@
 
 The smallest Google Cloud footprint for VALZ: **one Compute Engine VM** running the Docker Compose stack that already exists in this
 repository, and **Firebase** (Firestore and Authentication) for shared state and sign-in. The full managed design, with about 35
-services, is in [DEPLOYMENT.md](DEPLOYMENT.md); this guide is the lean alternative for a hackathon, a pilot or a single plant.
+services, is in [DEPLOYMENT.md](DEPLOYMENT.md); this guide is the lean alternative for a pilot or a single plant.
 
 ![VALZ on one VM with Firebase](../images/system_architecture_minimal.png)
 
@@ -59,12 +59,7 @@ On this VM the checkout is `/home/celescadev/AI-Builder-Cup-2026`. Its untracked
 ```dotenv
 DOMAIN=valz.limitlesstech-co.com
 API_DOMAIN=gemba.limitlesstech-co.com
-COMPOSE_PROJECT_NAME=ai_backend
 ```
-
-The project name preserves the existing Caddy certificate volumes. Deploy **from this checkout**, not the old
-`/home/celescadev/U-HACKATHON26/ai_backend` checkout. The old credentials were copied locally to `ai_backend/.env` (mode `600`);
-no credentials are committed. API cache and voice data use named volumes, and all three services restart automatically.
 
 ```bash
 cd /home/celescadev/AI-Builder-Cup-2026
@@ -74,7 +69,7 @@ sudo docker compose -f docker-compose.yml -f docker-compose.https.yml logs --tai
 ```
 
 For a fresh VM, copy `.env.example` to `.env`, copy `ai_backend/.env.example` to `ai_backend/.env`, configure model keys,
-then start the same Compose command. A fresh install does not need `COMPOSE_PROJECT_NAME=ai_backend`.
+then start the same Compose command.
 
 The override sets the frontend's `AI_BACKEND_URL=https://gemba.limitlesstech-co.com` and its public `ORIGIN`. The existing
 `/config` endpoint supplies the API address to the browser, so status, analysis, voice and video uploads use the HTTPS API
